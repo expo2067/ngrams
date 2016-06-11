@@ -1,0 +1,395 @@
+
+
+/*
+
+
+// Ngram Construction Parameters
+//
+//
+var NG_SEPARATOR = "="; // UsedNG_SEPARATORtoNG_SEPARATORseparateNG_SEPARATORwordsNG_SEPARATORinNG_SEPARATORanNG_SEPARATORNgram
+		// eg. "So=the=text=of=an=Ngram=looks=like=this"
+var NG_MAX_DEGREE = 4 ;
+
+
+// ---------- setup re: source-texts to use
+//
+var IgnoreWords = [ "the","a","these","those", "etc" ];
+// qqq--what about punctuation??
+
+var WordList_2 = [ 
+"of", "nuclear", "energy", "in", "1945",
+"and", "the", "arrival", "of", "the", "ﬂying", "saucers"
+];
+
+var WordList_1 = [ "My", "observation", "of", "the", "Universe", 
+"convinces", "me", "that", 
+"there", "are", "beings",
+"of", "intelligence", "and", "power", "of", 
+"a", "far", "higher", "quality", "than", "anything", "we",
+"can", "conceive", "of", "as", "human;", "that", "they", 
+"are", "not", "necessarily", "based", "on", "the",
+"cerebral", "and", "nervous", "structures", "that", "we", 
+"know;", "that", "is,", "the", "human",
+"ones", "that", "existed", "before", "the", "unleashing", 
+"of", "nuclear", "energy", "in", "1945",
+"and", "the", "arrival", "of", "the", "ﬂying", "saucers", 
+"in", "I", "94", "7", "period,", "before", "the", "20",
+"C", "zeitgeist", "was", "thoroughly", "recoded;", "and", 
+"that", "the", "one", "and", "only",
+"chance", "for", "mankind", "to", "advance", "as", "a", 
+"whole", "is", "for", "individuals", "to", "make",
+"contact", "with", "such", "beings" ];
+
+
+
+// CONSTRUCTOR for:  WordSource
+//
+function WordSource() { 
+	this.there_is_more = false;
+	this.wordSeparator = " " ; // ??
+	this.ws_index = 0;
+	this.theWordSource = null;
+	this.init = function( wordListSpec ) { 
+		this.theWordSource = wordListSpec ;
+		this.ws_index = 0; this.there_is_more = true; 
+	} 
+
+	this.reset = function( wordListSpec ) { this.init(wordListSpec) }
+	this.hasMore = function() { return this.there_is_more } 
+	this.nextWord = function() { 
+		if ( ! this.hasMore() ) return "";
+		var the_nextWord = "";
+
+		// FOR TESTING---- return a entry from WordList_1
+		// SHOULD BE-- a file
+		the_nextWord = WordList_1[this.ws_index] ;
+
+		// -----------------------------
+		// set state re: next iteration
+		this.ws_index++ ;
+		if ( this.ws_index >= WordList_1.length ) { this.there_is_more = false; }
+		// -----------------------------
+
+		return the_nextWord ;
+	} 
+	this.nextNgram = function() { return "no-ngrams" } 
+	this.show = function() { return "<string view of WordSource>" }
+}
+var ws = new WordSource(); 
+
+// TESTS for-------> WordSource
+/*
+var wst = new WordSource(); 
+wst.init( WordList_1 );
+wst.hasMore()
+wst.nextWord()
+wst.nextWord()
+wst.nextWord()
+wst.nextWord()
+*/
+
+
+/*
+var wt2 = new WordSource(); 
+wt2.init( WordList_2 );
+while ( wt2.hasMore() ) {
+	var w = wt2.nextWord()
+	show( "NextWord: " + w )
+}
+show( "== iter-test 1 -- end of WordList_2 ==" );
+show( "== reset and do it again-- WordList_2 ==" );
+wt2.reset( WordList_2 );
+while ( wt2.hasMore() ) {
+	var w = wt2.nextWord()
+	show( "NextWord: " + w )
+}
+show( "== iter-test 2 -- end of WordList_2 ==" );
+
+*/
+
+
+//
+// build Ngram(s) : Strategy #1
+//
+//
+function buildNgram_text_1( ws )
+{
+	var ngt = ""; // n-gram text to build and return
+	var nx = null; // next-word from ws
+
+show( "-->next Ngram -- full-drgee -------")
+
+	for( var i=0; i<NG_MAX_DEGREE; i++ ) {
+		if ( ws.hasMore() ) {
+			nx = ws.nextWord(); 
+			ngt = ( i == 0 ) ? nx : ngt + NG_SEPARATOR + nx ;
+			show( "-->building Ngram: degree: " + i + " |-->" + ngt + "<---" );
+		} 
+		else
+			break;
+	}
+	return ngt;
+}
+
+//
+//	TESTS for buildNgram_text_1
+//
+/*
+var wt3 = new WordSource(); 
+wt3.init( WordList_2 );
+var ng1 = null;
+while( wt3.hasMore() ) {
+	ng1 = buildNgram_text_1(wt3);
+	show( "GOT NgramText---->"+ng1+"<----" )
+}
+	show( "----> END OF wordSource ----" );
+*/
+
+
+function load_NgramList( nl )
+{
+	show( "-- load_NgramList( "+ nl )
+}
+
+function ss(l) { 
+	var zzz=[];
+	if ( l.length == 0 ) 
+		return "" ;
+	else
+		return ss( l.slice(1) ) ;
+}
+
+
+//
+// build Ngram(s) : Strategy #2
+//    word-by-word shift-register idea
+//
+//
+function buildNgram_text_2( ws )
+{
+	var ngt = []; // List of words-texts to build 
+	var nx = null; // next-word from ws
+
+show( "-->next Ngram -- buildNgram_text_2-------");
+
+		while ( ws.hasMore() ) {
+			show( "LOOP  ngt-->"+ngt+"<---" )
+			nx = ws.nextWord(); 
+			
+			ngt.push(nx);
+			show( "LOOP-while: ngt-->"+ngt+"<---" )
+
+			// build list of Ngrams from ngt
+			lng = []; // list of Ngrams: gets built in this loop and LOADED
+			for( var j=0; j<NG_MAX_DEGREE; j++ ) {
+				if ( j >= ngt.length ) break ;
+
+				show( "LOOP--j  j: "+j );
+				
+			// use slice(k) instead?	
+				for( var k=j; k<NG_MAX_DEGREE; k++ ) {
+				show( "LOOP--k  k: "+k+"  ngt: "+ngt );
+					ngt = ( k == j ) ? nx : ngt + NG_SEPARATOR + nx ;
+					//lng.push(ngt);
+				}
+			}
+
+			// LOAD list of Ngrams into Corpus
+			load_NgramList( lng );
+
+			// shift items in ngt to make room for next Word
+			ngt.shift();
+		} 
+	return show("------END buildNgram_text_2");
+}
+//
+// TESTS---------
+var wt3 = new WordSource(); 
+wt3.init( WordList_1 );
+buildNgram_text_2( wt3 );
+
+/*
+			ngt = ( i == 0 ) ? nx : ngt + NG_SEPARATOR + nx ;
+			show( "-->building Ngram: degree: " + i + " |-->" + ngt + "<---" );
+*/
+
+
+
+
+++++++++++++++++++
+++++++++++++++++++
+++++++++++++++++++
+
+we've got this:
+===> -->building Ngram: degree: 0 |-->a<---
+===> -->building Ngram: degree: 1 |-->a=whole<---
+===> -->building Ngram: degree: 2 |-->a=whole=is<---
+===> -->building Ngram: degree: 3 |-->a=whole=is=for<---
+===> -->building Ngram: degree: 4 |-->a=whole=is=for=individuals<---
+
+==> NEED TO do a Left-to-Right decompose-scan, so we can also get ngrams:
+ie. split each ngram into (n-1)grams, as many as possible
+		and repeat recursively!
+
+ie. is it something like:  sum( n-choose-r ) {for r=0 to n-1}
+
+The ful ngram is:
+	a=whole=is=for=individuals
+
+So if we successively peel-off single-words, from both the LEFT and the RIGHT
+ (separately) we get all the constiuent sub-kgrams, k=1 to (n-1):
+
+---------------------------------
+	a
+	a=whole
+	a=whole=is
+	a=whole=is=for
+	a=whole=is=for=individuals
+---------------------------------
+	PEEL off "a":
+	whole
+	whole=is
+	whole=is=for
+	whole=is=for=individuals
+---------------------------------
+	PEEL off "whole":
+	is
+	is=for
+	is=for=individuals
+---------------------------------
+	PEEL off "is":
+	for
+	for=individuals
+---------------------------------
+	PEEL off "for":
+	individuals
+---------------------------------
+
+  get next ngram
+	save first 1gram
+	peel off successive 1grams (from LEFT to RIGHT) :
+		LOAD each successive (k-1)gram as its own ngram
+	save last 1gram
+
+with n = full-degree for ngrams...
+
+===============================================
+INIT 
+	PREV-FINAL-1GRAM to null
+
+LOOP1:
+	get next ngram
+	LOAD next ngram 
+
+STITCH-CONSECUTIVE-ENDPOINT-1grams:
+	peel off first 1gram,
+		LOAD peeled-off (1)gram as its own ngram
+  pair with previous final 1gram
+		LOAD as the stitched 2gram
+
+PEEL-OFF-LEADING-1GRAMS:
+	LOOP2:
+		peel off successive 1grams (from LEFT to RIGHT) :
+			LOAD each peeled-off (1)gram as its own ngram
+			LOAD each successive (k-1)gram as its own ngram
+	END-LOOP2
+	save last 1gram
+END-LOOP1
+
+LOAD last 1gram
+===============================================
+
+
+splitNgram( text )	// aplit into 1grams
+peelNgram( text )		// split into head and tail
+mergeNgram( t1, t2 )  // merge ngrams t1, t2 into ngram 't1=t2"
+loadNgram( text, degree ) 	// Load into Corpus, incr counts, etc
+
+
+Stitching ngrams with (1+1)-grams:
+AND we need to pair the last 1gram of the current ngram (ie. "individuals")
+with the first 1gram of the next ngram,  to build a unique 2gram
+that spans consecutive ngrams, that we would otherwise miss!!!!
+
+	=============
+		[[ WHAT ABOUT the 	
+			the trailing (k-1)grams of the PREV Ngram 
+		  and the leading (1)gram of the CURRENT Ngram?
+      AND all the sliding intermediates of both the PREV and CURRENT ngrams?!?!?!!?
+
+				PREV-TRAILING-(k-1)gram + CURRENT-LEADING-(1)gram
+				PREV-TRAILING-(k-2)gram + CURRENT-LEADING-(2)gram
+				PREV-TRAILING-(k-3)gram + CURRENT-LEADING-(3)gram
+	=============
+
+ie. we have
+===> GOT NgramText---->for=mankind=to=advance=as<----
+===> GOT NgramText---->a=whole=is=for=individuals<----
+===> GOT NgramText---->to=make=contact=with=such<----
+
+so we need to record the spanning 2grams of
+  as=a
+and
+	individuals=to
+
+
+
+// CONSTRUCTOR for:  Ngram
+//
+function Ngram(text, count, degree) { 
+	this.text = text; 
+	this.count=count; 
+	this.degree=degree ;
+	this.incr_count = function() { this.count += 1; return this.count; }
+	this.incr_degree = function() { this.degree += 1; return this.degree; }
+	this.decompose = function() { return(this.text).split( NG_SEPARATOR ); }
+};
+
+// TESTS for Ngram
+/*
+var ng1 = new Ngram("a=a=a",1,3);
+var ng2 = new Ngram("a=a",1,2);
+var ng3 = new Ngram("a",1,1);
+*/
+
+
+
+++++++++++++++++++++++++++++++++
+
+
+
+
+	NgramEntry = { text: "", count: 0 };
+
+	function Corpus() = {
+		Ngrams = [] ;	// array of NgramEntry
+		processNgram = function() {
+			// process an Ngram into a Corpus
+		}
+	}
+	var c = new Corpus();
+
+
+	// ========== primary proessing ===============
+
+	ws.init() ;
+
+	while ( ws.hasMore() ) {
+	ng = ws.getnextNgram ;
+
+	ng.show();
+
+	c.consumeNGram(ng) ;
+	c.show();
+	}
+
+	show( "WordSource complete------" );
+	show( "Corpus looks like:-----" );
+		
+	
+
+
+	
+	
+
+*/
