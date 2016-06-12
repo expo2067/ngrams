@@ -1,5 +1,15 @@
 
 
+//
+//
+// ngrams  - use n-th degree ngram strategy for text generation.
+//
+//
+//
+//
+//
+//
+
 
 
 // Ngram Construction Parameters
@@ -11,6 +21,14 @@ var NG_SEPARATOR_SURFACE = " ";
 		// eg. "So=the=text=of=an=Ngram=looks=like=this"
 var NG_MAX_DEGREE = 4 ;
 
+
+//  UTILs
+//
+function show(msg) {
+console.log("===> "+msg);
+}
+// TESTS
+show("kkk")
 
 // ---------- setup re: source-texts to use
 //
@@ -153,7 +171,7 @@ function load_NgramList( nl )
 	for ( var i=0; i < nl.length; i++ ) {
 		show( "-- ngram: " + nl[i].join("+") );
 		show( "-- ngramEntry: " + "<stringrep-of-NgramEntry>" )
-		show( "-- LOAD ngramEntry into NgramTable... " )
+		show( "-- LOAD ngramEntry into NgramEntryTable... " )
 		
 	}
 	show( "-- EXIT load_NgramList( " )
@@ -192,37 +210,13 @@ function tsl( l )
 //qq==	return r;
 //qq==}
 
-//----------------------------------
-//qq==function ngramsFromWordRegister(nx) 
-//qq=={
-//qq==	show("---- call ngramsFromWordRegister( nx: " + nx );
-//qq==// build list of Ngrams from ngt
-//qq==var lng = []; // list of Ngrams: gets built in this loop and LOADED
-//qq==
-//qq==			for( var j=0; j<NG_MAX_DEGREE; j++ ) {
-//qq==				if ( j >= ngt.length ) break ;
-//qq==
-//qq==				show( "LOOP--j  j: "+j );
-//qq==				
-//qq==			// use slice(k) instead?	
-//qq==				for( var k=j; k<NG_MAX_DEGREE; k++ ) {
-//qq==				show( "LOOP--k  k: "+k+"  ngt: "+ngt );
-//qq==					ngt = ( k == j ) ? nx : ngt + NG_SEPARATOR + nx ;
-//qq==					//lng.push(ngt);
-//qq==				}
-//qq==				show( "END-LOOP--k" );
-//qq==			}
-//qq==				show( "END-LOOP--j" );
-//qq==
-//qq==	return lng;
-//qq==}
-//----------------------------------
 function ngramsFromWordRegister(nx) 
 {
-	// show("---- call ngramsFromWordRegister( nx: " + nx );
+	show("---- call ngramsFromWordRegister( nx: " + nx );
 // build list of Ngrams from ngt
 var lng = []; // list of Ngrams: gets built in this loop and LOADED
 	lng = tsl(nx);
+	show("---- exiting ngramsFromWordRegister( lng: " + lng );
 	return lng;
 }
 //----------------------------------
@@ -274,7 +268,9 @@ function UniqueIDProvider() {
 	this.counter = 0
 	this.next = function( ) { return ++this.counter } 
 }
+//
 // TESTS--
+//
 var uid1 = new UniqueIDProvider();
 var uid2 = new UniqueIDProvider();
 uid1.next()
@@ -282,6 +278,13 @@ uid2.next()
 uid2.next()
 uid2.next()
 uid1.next()
+var Ngram_GUID_Provider = new UniqueIDProvider()
+var Link_GUID_Provider = new UniqueIDProvider()
+Ngram_GUID_Provider.next()
+Link_GUID_Provider.next() 
+Ngram_GUID_Provider.next()
+Ngram_GUID_Provider.next()
+Link_GUID_Provider.next() 
 
 
 
@@ -316,10 +319,6 @@ function NgramEntry(id, ngram, count, degree) {
 	this.ngram = ngram ;
 	this.count=count; 
 	this.degree= degree; // ??needed??
-// not sure what's needed here---
-/*
-	this.ngram2list = function() { return this.
-*/
 }
 // TESTS
 ne1= new NgramEntry(57,["as to this"],1,1)
@@ -344,25 +343,81 @@ nlnk1.incr()
 nlnk1.count
 nlnk1.stringRep()
 
+//---------------------------------
+//  js--able to attach generic functions to objects??
+//           Yes!
+/*
+function load( x ) {
+	this.table[ this.table.length ] = x
+}
+function A() {
+	this.table = []
+	this.load = load
+}
+function B() {
+	this.table = []
+	this.load = load
+}
+
+var A1=new A()
+A1.table[0]=1 ; A1.table[1]=10
+A1.load(2000)
+var B1=new B()
+B1.table[0]=5; B1.table[1]=50
+B1.load(3000)
+A1.table
+B1.table
+
+*/
+//---------------------------------
 
 
-function	NgramTable() {
+
+function	NgramEntryTable() {
 	this.table = [];	// array of NgramEntry
 	this.count = function() { return (this.table).length }
-	this.ngramIsInTable = function( ng ) {
-		// return object: { is_in_table: boolean, id: ... }
+	this.IsInTableById = function( item_id ) {
+		var is_in = ( !(this.table[item_id] === undefined) )
+		return { is_in_table: is_in, id: (is_in ? item_id : null) }
+	}
+	this.load = function( item_as_object ) {
+		var is_in = null
+		if ( this.IsInTableById( item_as_object.id ) ) {
+			is_in = true
+			( this.table[ item_as_object.id ].count )++
+		}
+		else {
+			// qqq-NEED to assign an ID, no?
+			is_in = false
+			( this.table[ item_as_object.id ] = item_as_object
+		}
+		return { is_in_table: is_in, id: (is_in ? item_id : null) }
 	}
 }
 //
 // TESTS
-var nt = new NgramTable();
+var nt = new NgramEntryTable();
 nt.count()
 
 function	NgramLinkTable() {
 	this.table = [];	// array of NgramLinks
 	this.count = function() { return (this.table).length }
-	this.ngramIsInTable = function( ng ) {
-		// return object: { is_in_table: boolean, id: ... }
+	this.IsInTableById = function( item_id ) {
+		var is_in = ( !(this.table[item_id] === undefined) )
+		return { is_in_table: is_in, id: (is_in ? item_id : null) }
+	}
+	this.load = function( item_as_object ) {
+		var is_in = null
+		if ( this.IsInTableById( item_as_object.id ) ) {
+			is_in = true
+			( this.table[ item_as_object.id ].count )++
+		}
+		else {
+			// qqq-NEED to assign an ID, no?
+			is_in = false
+			( this.table[ item_as_object.id ] = item_as_object
+		}
+		return { is_in_table: is_in, id: (is_in ? item_id : null) }
 	}
 }
 //
@@ -374,29 +429,30 @@ nlt.count()
 
 //  Corpus -- high-level object of ngram manipulation
 //		which includes:
-//		- analyzed word-source in form of NgramTable
-//		- generative methods that use the NgramTable  (?? or is this stuff elsewhere?)
+//		- analyzed word-source in form of NgramEntryTable
+//		- generative methods that use the NgramEntryTable  
+//			(?? or is the gen stuff elsewhere? Elsewhere -- 
+//				in some Generator, which uses one or more Corpuses, along with
+//				optional other entities/strategies, to (re)generate text.
 //
 function Corpus() {
-
-	this.ngrams = new NgramTable() 
+	this.ngrams = new NgramEntryTable() 
 	this.links = new NgramLinkTable() 
 
 	this.analyze = function( ws ) {
-		show( "Corpus.analyze== : wordSource into NgramTable" );
-// LEFT_OFF -- Using new objects , revise/extend/incorp buildNgram_text_2
-// into new Corpus.analyze function
+		show( "Corpus.analyze== : wordSource into NgramEntryTable" );
 		this.extract_Ngrams( ws );
 	}
 
 	this.extract_Ngrams = function( ws ) {
-show( "-->extract_Ngrams-------");
-	var ngt = []; // List of words-texts to build 
-	var nxw = null; // next-word from ws
+		show( "-->Corpus.extract_Ngrams-------");
+		var ngt = []; // List of words-texts to build 
+		var nxw = null; // next-word from ws
 
 		while ( ws.hasMore() ) {
 			nxw = ws.nextWord(); 
 			ngt.push(nxw);
+			show( "LOOP-while: WordRegister-->"+ngt+"<---" )
 
 			var ngramList = ngramsFromWordRegister(ngt) ;
 
@@ -412,48 +468,74 @@ show( "-->extract_Ngrams-------");
 				ngt.shift();
 		} 
 	return show( "-->END extract_Ngrams-------");
-	}
+	} //----ok
 
 // load_ngl - Load list of kgrams (k=1 to N) into corpus, 
 //		with their pairwise links
 //
 	this.load_ngl = function( kgl ) {
 
-	// kgl - list of kkgrams, k=N to 1
-	var prev_kg = null;  // previous kgram
-	var kcount = kgl.length ;  // number of kgrams in the list
-
-	show( "corpus_load_ngl: ngram list: <" + ngl + ">" )
-	var kg1=null;
-	var kg2=null;
-	var kg_link = { ng1: []; ng2 = []; count: 1 };
-	for ( var j=0; j < (kcount-2); j++ ) {
-		// get two consecutive kgrams
-		kg1 = kgl[j]; kg2 = kgl[j+1];
-		// make the link between them
-		kg_link.ng1 = kg1; kg_link.ng2 = kg2; kg_link.count = 1;
-		show( "kgrams ( " + j " , " j + 1 + ") : < " + kg1 + ">------< " + kg2 " > " );
-		this.load_2_ngrams( kg1, kg2 );
+		// kgl - list of kkgrams, k=N to 1
+		var prev_kg = null;  // previous kgram
+		var kcount = kgl.length ;  // number of kgrams in the list
+	
+		// show( "corpus_load_ngl: ngram list: <" + kgl + ">" )
+		var kg1=null;
+		var kg2=null;
+		var kg_link = { ng1: [], ng2: [], count: 1 };
+		for ( var j=0; j < (kcount-2); j++ ) {
+			// get two consecutive kgrams
+			kg1 = kgl[j]; kg2 = kgl[j+1];
+			show( "consecutive kgrams ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
+			// ???-these kg's are now lists; when are they new'd into Ngrams???
+			this.load_ngram_pair( kg1, kg2 );
+		}
 	}
-}
+
+// load_ngram - load a single ngram
+//  NB -- incoming parm is a list, technically.
+//    It must be new'd into an instance of type Ngram
+//
+	this.load_ngram = function ( ng_as_list ) {  
+		show( "---ENTER load_ngram" )
+		var ng_id = Ngram_GUID_Provider.next() 
+		var ng_as_Ngram = new Ngram(ng_as_list);
+		var ng_as_NgramEntry = new NgramEntry( ng_as_Ngram );
+		show( "--------load_ngram( ")
+		show( "||as-list:" + ng_as_list + "||" )
+		show( "as new Ngram: ||" ) ; ngram.show() 
+		show( "|| using id: " + ng_id )
+		//ttt - load this Ngram into NgramEntryTable
+	/* the situation:
+		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
+	*/
+ttt
+	}
+
+	this.load_link = function ( id_ng_1, id_ng_2 ) {  
+		var link_id = Link_GUID_Provider.next() 
+		// show( "load_link( " + "id_ng_1--<" + id_ng_1 + ">-- " + link_id + " --<  " + id_ng_2 + " >---" )
+		return link_id
+	}
 
 // submit the two kgrams to the Corpus for LOADing
 // The corpus must check whether the kgram(
 //
-	this.load_2_ngrams = function ( n1, n2 ) {
-		show( "------------corpus_load_2_ngrams( {{" + n1 + "}}========{{" + n2 + "}}" )
+	this.load_ngram_pair = function ( n1, n2 ) {
+		show( "------------corpus.load_ngram_pair( {{" + n1 + "}}========{{" + n2 + "}}" )
 	
-	/*
 		var id_n1 = null
 		var id_n2 = null
-		id_n1 = c_load_1( n1 )	// Load ngram if not already there; return id
-		id_n2 = c_load_2( n1 )
+		show( "------------call.load_ngram( ===|| " + n1 + " ||===" )
+		id_n1 = this.load_ngram( n1 )	
+		show( "------------call.load_ngram( ===|| " + n2 + " ||===" )
+		id_n2 = this.load_ngram( n2 )
 		var nlink = null
-		c_load_link( id_n1, id_n2 ) // Load ngram-link, if not already there; incr its link.count; return id
-	
-	*/
+		var nlink_id = 0
+		show( "------------call.load_link( using===|| ( id_n1, id_n2 )===(" + id_n1 + " , " + id_n2 + ")==" )
+		nlink_id = this.load_link( id_n1, id_n2 ) 
+		return { ng1: id_n1, ng2: id_n2, link_id: nlink_id }
 	}
-
 
 }
 
@@ -463,7 +545,8 @@ show( "-->extract_Ngrams-------");
 c = new Corpus()
 var wtc = new WordSource(); 
 wtc.init( WordList_2 );
-ttt( wtc );
+// LEFT_OFF-- to test corpus Ngram*Table load routines
+c.analyze( wtc );
 
 
 
