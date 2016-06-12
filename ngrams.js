@@ -5,10 +5,90 @@
 // ngrams  - use n-th degree ngram strategy for text generation.
 //
 //
-//
-//
-//
-//
+
+/*
+The Vision
+
+	Generate a text stream using several sample texts as input/examples,
+	mixing the stochastic proportions of the various samples 
+	that contribute to the final output, in real-time, 
+	via some interactive control mechanism (eg. mouse gui widgets).
+
+	The overriding purpose is not an exact (or nearly-so) reproduction of the
+	originals. The idea is to get some sense of the style and content of the
+	originals, mixed together in varying "creative" proportions.
+
+	Think poetry or surrealist text, which is not necessarily grammatically 
+	correct or semantically "reasonable" prose.
+
+
+*/
+
+
+//----------------------------------
+/*
+	Objects involved
+
+ *existing*
+
+	WordSource - text to be analyzed using ngrams
+		- currently implemented as a simple text-block within the source-code
+		- should be extended to support reading files
+
+	UniqueIDProvider - generic "unique ID" (GUID) factory
+
+	Ngram - an ngram of words
+		- in raw form, is a list of words
+
+	NgramEntry - an Ngram in housekeeping/analyzed form
+		- consists of the original raw text, as well as analysis data:
+				an internal ID
+				a count of the words
+				a count of occurences
+
+	NgramLink - a link between two Ngrams
+
+	NgramEntryTable - table of NgramEntry instances encountered
+
+	NgramLinkTable - table of all (ngram, ngram) links
+
+	Corpus - a body of text in fully analyzed form
+		- the object that brings together the ngrams, their links and probabilities
+		- performs analysis of a WordSource
+		- encodes results of analysis into suitable tables, probability distributions,
+			etc.
+		- used by a Generator to generate new text
+
+	
+	
+	*proposed*
+		
+	PDF - Probability Distribution Function
+		- used to describe (ngram, ngram) "state-transitions"
+		- used to control various generative processes
+		- may support various "creative" modification operations
+			eg. shifting of discrete PDF bin-ranges
+
+	Generator - use one or more Corpuses to generate a new text stream
+		- in the simplest scenario
+
+	GeneratorController - allows manipulation of the parameters of a Generator
+		- various operations may include:
+
+
+
+	A Typical User Story or Workflow
+
+	First, the necessary setup:
+		- gather sample texts
+		- analyze the texts into Corpuses
+
+	Then, the real fun part:
+		- generate new text output
+
+*/
+//----------------------------------
+
 
 
 
@@ -127,43 +207,6 @@ show( "== iter-test 2 -- end of WordList_2 ==" );
 */
 
 
-//
-// build Ngram(s) : Strategy #1
-//
-//
-function buildNgram_text_1( ws )
-{
-	var ngt = ""; // n-gram text to build and return
-	var nx = null; // next-word from ws
-
-show( "-->next Ngram -- full-drgee -------")
-
-	for( var i=0; i<NG_MAX_DEGREE; i++ ) {
-		if ( ws.hasMore() ) {
-			nx = ws.nextWord(); 
-			ngt = ( i == 0 ) ? nx : ngt + NG_SEPARATOR + nx ;
-			show( "-->building Ngram: degree: " + i + " |-->" + ngt + "<---" );
-		} 
-		else
-			break;
-	}
-	return ngt;
-}
-
-//
-//	TESTS for buildNgram_text_1
-//
-/*
-var wt3 = new WordSource(); 
-wt3.init( WordList_2 );
-var ng1 = null;
-while( wt3.hasMore() ) {
-	ng1 = buildNgram_text_1(wt3);
-	show( "GOT NgramText---->"+ng1+"<----" )
-}
-	show( "----> END OF wordSource ----" );
-*/
-
 
 function load_NgramList( nl )
 {
@@ -277,7 +320,6 @@ uid1.next()
 uid2.next()
 uid2.next()
 uid2.next()
-uid1.next()
 var Ngram_GUID_Provider = new UniqueIDProvider()
 var Link_GUID_Provider = new UniqueIDProvider()
 Ngram_GUID_Provider.next()
@@ -509,7 +551,6 @@ function Corpus() {
 	/* the situation:
 		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
 	*/
-ttt
 	}
 
 	this.load_link = function ( id_ng_1, id_ng_2 ) {  
