@@ -238,21 +238,6 @@ function tsl( l )
 	return r;
 };
 
-//  tsl  -- recursive version  -- can't get this to work right!!
-//qq==function tsl( l )
-//qq=={
-//qq==	var r=[];
-//qq==	//if ( l == null  )
-//qq==	if ( l.length <= 1  )
-//qq==		r = [] ;
-//qq==	else {
-//qq==		//r.push(l); r.push( tsl(l.slice(1,l.length)) ) ;
-//qq==		r.push(l); r.push( tsl(l.slice(1)) ) ;
-//qq==	}
-//qq==show( "tsl recursive: l: "+l.join("_")+"  return: "+r.join("_") );
-//qq==	return r;
-//qq==}
-
 function ngramsFromWordRegister(nx) 
 {
 	show("---- call ngramsFromWordRegister( nx: " + nx );
@@ -354,38 +339,8 @@ n1.show()
 n2.show()
 
 
-// CONSTRUCTOR for:  NgramEntry
-//
-function NgramEntry(id, ngram, count, degree) { 
-	this.id = id;
-	this.ngram = ngram ;
-	this.count=count; 
-	this.degree= degree; // ??needed??
-}
-// TESTS
-ne1= new NgramEntry(57,["as to this"],1,1)
-ne2 = new NgramEntry(89,["aaa","asdasda"],34,2)
-ne1
-ne2
-
-function	NgramLink( id, pre_id, next_id ) {
-	this.id = id
-	this.pre_id = pre_id
-	this.next_id = next_id
-	this.count = 1
-	this.incr = function() { return ++this.count }
-	this.stringRep = function() { return "NgramLink( " + this.id + "): " + "(" + this.pre_id +")" + "----->" + "(" + this.next_id + ")" ; }
-
-}
-//
-// TESTS
-nlnk1 = new NgramLink( 2,57,54)
-nlnk1.count
-nlnk1.incr()
-nlnk1.count
-nlnk1.stringRep()
-
 //---------------------------------
+//   'Generic' Functions for 'objects'
 //  js--able to attach generic functions to objects??
 //           Yes!
 /*
@@ -411,61 +366,152 @@ A1.table
 B1.table
 
 */
-//---------------------------------
 
+//-------------------------------------------------------------
+//  Generic routines for "classes" with internal tables and assoc'd utils
+//-------------------------------------------------------------
+
+// increment_count - generic function for objects that have a (this.count)
+//
+function increment_count() { return ++this.count }
+
+function IsInTableById( item_id ) {
+		// NB - the loc'n within the table is not necessarily the same as 
+		// the item's id
+		var is_in = ( !(this.table[item_id] === undefined) )
+		// return { is_in_table: is_in, id: item_id }
+		// make this routine a strict boolean-return-value
+		return is_in
+}
+
+	// load - load an entry into the Table.
+	//		NB - the object instance is assumed to be hydrated ie. 
+	//				to already have an internal id.
+	//				ie. It is not this routine's responsibility to assign an id to the Entry object.
+	//
+function LoadItemIntoTable( item_as_object ) {
+		var is_in = ( this.IsInTableById( item_as_object.id ) )
+
+		if ( is_in ) {
+			(this.table[ item_as_object.id ]).count += 1
+		}
+		else {
+			this.table[ item_as_object.id ] = item_as_object
+			// up the counter of the items in table
+			//increment_count() 
+			this.incr_count() 
+		}
+		return { was_in_table: is_in, id: item_as_object.id }
+}
+
+
+
+// CONSTRUCTOR for:  NgramEntry
+//
+function NgramEntry(id, ngram, count, degree) { 
+	this.id = id;
+	this.ngram = ngram ;
+	this.count=count; 
+	this.incr_count=increment_count
+	this.degree= degree; // ??needed??
+}
+// TESTS
+ne1= new NgramEntry(57, new Ngram( ["as to this"] ),1,1)
+ne2 = new NgramEntry(89,new Ngram( ["aaa","asdasda"] ),34,2)
+ne1
+ne2
+ne2.count
+ne2.incr_count()
+
+
+function	NgramLink( id, pre_id, next_id ) {
+	this.id = id
+	this.pre_id = pre_id
+	this.next_id = next_id
+	this.count = 1
+	this.incr_count=increment_count
+	this.stringRep = function() { return "NgramLink( " + this.id + "): " 
+		+ "(" + this.pre_id +")" 
+		+ "---| " + this.count + " |---->" + 
+		"(" + this.next_id + ")" 
+	; }
+}
+//
+// TESTS
+nlnk1 = new NgramLink( 2,57,54)
+nlnk1.stringRep()
+nlnk1.count
+nlnk1.incr_count()
+nlnk1.count
+nlnk1.stringRep()
+
+
+
+// ttt - create a generic "EntryTable" class
+//    item-specific tables are then *instance* of this class, 
+//		not unique classes
 
 
 function	NgramEntryTable() {
 	this.table = [];	// array of NgramEntry
-	this.count = function() { return (this.table).length }
-	this.IsInTableById = function( item_id ) {
-		var is_in = ( !(this.table[item_id] === undefined) )
-		return { is_in_table: is_in, id: (is_in ? item_id : null) }
-	}
-	this.load = function( item_as_object ) {
-		var is_in = null
-		if ( this.IsInTableById( item_as_object.id ) ) {
-			is_in = true
-			( this.table[ item_as_object.id ].count )++
-		}
-		else {
-			// qqq-NEED to assign an ID, no?
-			is_in = false
-			( this.table[ item_as_object.id ] = item_as_object
-		}
-		return { is_in_table: is_in, id: (is_in ? item_id : null) }
-	}
+	this.count = 0
+	this.incr_count=increment_count
+
+	this.IsInTableById = IsInTableById
+	// load - load an Entry into the Table.
+	//		NB - the object instance is assumed to be hydrated ie. 
+	//				to already have an internal id.
+	//				ie. It is not this routine's responsibility to assign an id to the Entry object.
+	//
+	this.load = LoadItemIntoTable
+
+	// NEED a getById routine
+	// NEED a deleteById routine??
 }
 //
 // TESTS
+show( "------------TESTS for NgramEntryTable();")
 var nt = new NgramEntryTable();
 nt.count()
+var ne1= new NgramEntry(57,new Ngram(["as to this"]),1,1)
+var ne2 = new NgramEntry(89,new Ngram(["moving","escalation"]),34,2)
+ne1
+ne2
+nt.IsInTableById(57)  
+nt.load( ne1 ) ;
+nt.IsInTableById(57)  
+
+nt.IsInTableById(58)  
+
+nt.IsInTableById(89)  
+nt.load( ne2 ) ;
+nt.IsInTableById(89)  
+
+
 
 function	NgramLinkTable() {
 	this.table = [];	// array of NgramLinks
-	this.count = function() { return (this.table).length }
-	this.IsInTableById = function( item_id ) {
-		var is_in = ( !(this.table[item_id] === undefined) )
-		return { is_in_table: is_in, id: (is_in ? item_id : null) }
-	}
-	this.load = function( item_as_object ) {
-		var is_in = null
-		if ( this.IsInTableById( item_as_object.id ) ) {
-			is_in = true
-			( this.table[ item_as_object.id ].count )++
-		}
-		else {
-			// qqq-NEED to assign an ID, no?
-			is_in = false
-			( this.table[ item_as_object.id ] = item_as_object
-		}
-		return { is_in_table: is_in, id: (is_in ? item_id : null) }
-	}
+	this.count = 0
+	this.incr_count = increment_count
+
+	this.IsInTableById = IsInTableById 
+	this.load = LoadItemIntoTable
 }
 //
 // TESTS
 var nlt = new NgramLinkTable();
-nlt.count()
+
+// new NgramLink( id, pre_id, next_id ) {
+var nl1= new NgramLink( 2, 19, 35 ) 
+var nl2 = new NgramLink( 5, 19, 37 ) 
+
+nlt
+nlt.count
+nlt.load(nl1)
+nlt.count
+nlt.load(nl2)
+nlt.count
+nlt
 
 
 
