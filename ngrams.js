@@ -24,6 +24,22 @@ The Vision
 
 */
 
+//===================
+/*
+	TODO
+
+	Corpus -	
+		add routine to report summary of corpus
+		move ngram-loading routines into separate class
+		add pdf-calc routines
+
+	Generator - 
+		begin build-out
+		add generate routines
+
+*/
+//===================
+
 
 //----------------------------------
 /*
@@ -99,7 +115,7 @@ var NG_SEPARATOR = "="; // UsedNG_SEPARATORtoNG_SEPARATORseparateNG_SEPARATORwor
 
 var NG_SEPARATOR_SURFACE = " "; 
 		// eg. "So=the=text=of=an=Ngram=looks=like=this"
-var NG_MAX_DEGREE = 4 ;
+var NG_MAX_DEGREE = 3 ;
 
 
 //  UTILs
@@ -115,12 +131,23 @@ show("kkk")
 var IgnoreWords = [ "the","a","these","those", "etc" ];
 // qqq--what about punctuation??
 
+var WordList_1 = [ 
+"of", "nuclear", "energy", "in", "1945",
+"and", "the", "arrival", "of", "the", "ﬂying", "saucers"
+];
+
 var WordList_2 = [ 
 "of", "nuclear", "energy", "in", "1945",
 "and", "the", "arrival", "of", "the", "ﬂying", "saucers"
 ];
 
-var WordList_1 = [ "My", "observation", "of", "the", "Universe", 
+var WordList_3 = [ 
+"can", "conceive", "of", "as", "human;", "that", "they", 
+"are", "not", "necessarily", "based", "on", "the",
+"cerebral", "and", "nervous", "structures", "that", "we"
+]
+
+var WordList_4 = [ "My", "observation", "of", "the", "Universe", 
 "convinces", "me", "that", 
 "there", "are", "beings",
 "of", "intelligence", "and", "power", "of", 
@@ -148,9 +175,11 @@ function WordSource() {
 	this.wordSeparator = " " ; // Word SEPARATOR in the WordSource body-of-text
 	this.ws_index = 0;
 	this.theWordSource = null;
+	this.wordcount = 0
 	this.init = function( wordListSpec ) { 
-		this.theWordSource = wordListSpec ;
+		this.theWordSource = wordListSpec ;  // NB-TODO-- a list of words for now-- SHOULD be file
 		this.ws_index = 0; this.there_is_more = true; 
+		this.wordcount = 0
 	} 
 
 	this.reset = function( wordListSpec ) { this.init(wordListSpec) }
@@ -161,12 +190,13 @@ function WordSource() {
 
 		// FOR TESTING---- return a entry from WordList_1
 		// SHOULD BE-- a file
-		the_nextWord = WordList_1[this.ws_index] ;
+		the_nextWord = this.theWordSource[this.ws_index] ;
+		this.wordcount++
 
 		// -----------------------------
 		// set state re: next iteration
 		this.ws_index++ ;
-		if ( this.ws_index >= WordList_1.length ) { this.there_is_more = false; }
+		if ( this.ws_index >= this.theWordSource.length ) { this.there_is_more = false; }
 		// -----------------------------
 
 		return the_nextWord ;
@@ -177,16 +207,20 @@ function WordSource() {
 var ws = new WordSource(); 
 
 // TESTS for-------> WordSource
-/*
 var wst = new WordSource(); 
-wst.init( WordList_1 );
+wst.init( WordList_2 );
 wst.hasMore()
 wst.nextWord()
 wst.nextWord()
 wst.nextWord()
 wst.nextWord()
-*/
 
+wst.init( WordList_3 );
+wst.hasMore()
+wst.nextWord()
+wst.nextWord()
+wst.nextWord()
+wst.nextWord()
 
 /*
 var wt2 = new WordSource(); 
@@ -240,11 +274,9 @@ function tsl( l )
 
 function ngramsFromWordRegister(nx) 
 {
-	show("---- call ngramsFromWordRegister( nx: " + nx );
 // build list of Ngrams from ngt
 var lng = []; // list of Ngrams: gets built in this loop and LOADED
 	lng = tsl(nx);
-	show("---- exiting ngramsFromWordRegister( lng: " + lng );
 	return lng;
 }
 //----------------------------------
@@ -295,7 +327,11 @@ buildNgram_text_2( wt3 );
 function UniqueIDProvider() {
 	this.counter = 0
 	this.next = function( ) { return ++this.counter } 
+	this.reset = function() { this.counter = 0 }
 }
+var Ngram_GUID_Provider = new UniqueIDProvider()
+var Link_GUID_Provider = new UniqueIDProvider()
+
 //
 // TESTS--
 //
@@ -305,13 +341,8 @@ uid1.next()
 uid2.next()
 uid2.next()
 uid2.next()
-var Ngram_GUID_Provider = new UniqueIDProvider()
-var Link_GUID_Provider = new UniqueIDProvider()
-Ngram_GUID_Provider.next()
-Link_GUID_Provider.next() 
-Ngram_GUID_Provider.next()
-Ngram_GUID_Provider.next()
-Link_GUID_Provider.next() 
+
+
 
 
 
@@ -447,7 +478,7 @@ nlnk1.stringRep()
 
 
 
-// ttt - create a generic "EntryTable" class
+// TODO - create a generic "EntryTable" class
 //    item-specific tables are then *instance* of this class, 
 //		not unique classes
 
@@ -516,6 +547,7 @@ nlt
 
 
 //  Corpus -- high-level object of ngram manipulation
+//
 //		which includes:
 //		- analyzed word-source in form of NgramEntryTable
 //		- generative methods that use the NgramEntryTable  
@@ -523,28 +555,37 @@ nlt
 //				in some Generator, which uses one or more Corpuses, along with
 //				optional other entities/strategies, to (re)generate text.
 //
+//  TODO - move most of the single-ngram/link related stuff 
+//		to another class eg.  NgramWrangler
+//
 function Corpus() {
 	this.ngrams = new NgramEntryTable() 
 	this.links = new NgramLinkTable() 
+	this.wc = 0 	// wordcount
 
 	this.analyze = function( ws ) {
 		show( "Corpus.analyze== : wordSource into NgramEntryTable" );
 		this.extract_Ngrams( ws );
 	}
 
+	this.summarize = function() {
+		show("Corpus Summary===" )
+		show("count wordcount: " + this.wc )
+		show("count ngrams: " + this.ngrams.count )
+		show("count links: " + this.links.count )
+	}
+
 	this.extract_Ngrams = function( ws ) {
 		show( "-->Corpus.extract_Ngrams-------");
 		var ngt = []; // List of words-texts to build 
 		var nxw = null; // next-word from ws
+		var wc = 0; // wordcount from ws
 
 		while ( ws.hasMore() ) {
-			nxw = ws.nextWord(); 
+			nxw = ws.nextWord(); this.wc++ ;
 			ngt.push(nxw);
-			show( "LOOP-while: WordRegister-->"+ngt+"<---" )
 
 			var ngramList = ngramsFromWordRegister(ngt) ;
-
-			show( "LOOP-while: Got ngramList from ngramsFromWordRegister-->"+ngramList+"<---" )
 
 			// LOAD list of Ngrams into Corpus ------
 			this.load_ngl( ngramList ); 
@@ -555,8 +596,9 @@ function Corpus() {
 			if ( ngt.length == NG_MAX_DEGREE )
 				ngt.shift();
 		} 
-	return show( "-->END extract_Ngrams-------");
-	} //----ok
+	show( "-->END extract_Ngrams----" + "wordcount: " + wc + "  ngramcount: ???" )
+	return this.wc 
+	} 
 
 // load_ngl - Load list of kgrams (k=1 to N) into corpus, 
 //		with their pairwise links
@@ -591,17 +633,21 @@ function Corpus() {
 		var ng_as_NgramEntry = new NgramEntry( ng_as_Ngram );
 		show( "--------load_ngram( ")
 		show( "||as-list:" + ng_as_list + "||" )
-		show( "as new Ngram: ||" ) ; ngram.show() 
+		show( "as new Ngram: ||" ) ; ng_as_Ngram.show() 
 		show( "|| using id: " + ng_id )
-		//ttt - load this Ngram into NgramEntryTable
 	/* the situation:
 		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
 	*/
+		//- load this Ngram into NgramEntryTable
+		show( "---call this.ngrams.load" )
+		this.ngrams.load( ng_as_NgramEntry );
+		show( "---called this.ngrams.load" )
+		return ng_id
 	}
 
 	this.load_link = function ( id_ng_1, id_ng_2 ) {  
 		var link_id = Link_GUID_Provider.next() 
-		// show( "load_link( " + "id_ng_1--<" + id_ng_1 + ">-- " + link_id + " --<  " + id_ng_2 + " >---" )
+		this.links.load( new NgramLink( link_id, id_ng_1, id_ng_2 ) )
 		return link_id
 	}
 
@@ -609,8 +655,6 @@ function Corpus() {
 // The corpus must check whether the kgram(
 //
 	this.load_ngram_pair = function ( n1, n2 ) {
-		show( "------------corpus.load_ngram_pair( {{" + n1 + "}}========{{" + n2 + "}}" )
-	
 		var id_n1 = null
 		var id_n2 = null
 		show( "------------call.load_ngram( ===|| " + n1 + " ||===" )
@@ -619,9 +663,8 @@ function Corpus() {
 		id_n2 = this.load_ngram( n2 )
 		var nlink = null
 		var nlink_id = 0
-		show( "------------call.load_link( using===|| ( id_n1, id_n2 )===(" + id_n1 + " , " + id_n2 + ")==" )
 		nlink_id = this.load_link( id_n1, id_n2 ) 
-		return { ng1: id_n1, ng2: id_n2, link_id: nlink_id }
+		return { ng1: id_n1, ng2: id_n2, link_id: nlink_id } ;
 	}
 
 }
@@ -631,9 +674,23 @@ function Corpus() {
 //
 c = new Corpus()
 var wtc = new WordSource(); 
-wtc.init( WordList_2 );
-// LEFT_OFF-- to test corpus Ngram*Table load routines
+wtc.init( WordList_1 );
+// LEFT_OFF-- to test corpus Ngram*Table load routines -- 
+//		esp. inspection of NgramEntryTable in Corpus
 c.analyze( wtc );
+c.summarize();
+	
 
 
 
+//
+//   Generator
+//
+function Generator( list_of_corpuses ) {
+	this.corpuses = list_of_corpuses
+
+	this.generate = function() {
+		show( "Generator -- generate text using list of Corpuses" )
+	}
+
+}
