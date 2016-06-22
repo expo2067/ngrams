@@ -132,8 +132,7 @@ var IgnoreWords = [ "the","a","these","those", "etc" ];
 // qqq--what about punctuation??
 
 var WordList_1 = [ 
-"of", "nuclear", "energy", "in", "1945",
-"and", "the", "arrival", "of", "the", "ﬂying", "saucers"
+"the", "arrival", "of", "the", "ﬂying", "saucers"
 ];
 
 var WordList_2 = [ 
@@ -248,7 +247,7 @@ function load_NgramList( nl )
 	for ( var i=0; i < nl.length; i++ ) {
 		show( "-- ngram: " + nl[i].join("+") );
 		show( "-- ngramEntry: " + "<stringrep-of-NgramEntry>" )
-		show( "-- LOAD ngramEntry into NgramEntryTable... " )
+		show( "-- LOAD ngramEntry into NgramEntryTable " )
 		
 	}
 	show( "-- EXIT load_NgramList( " )
@@ -315,14 +314,16 @@ show( "-->next Ngram -- buildNgram_text_2-------");
 }
 //
 // TESTS---------for buildNgram_text_2
+/*
 var wt3 = new WordSource(); 
 wt3.init( WordList_2 );
 buildNgram_text_2( wt3 );
+*/
 
 
-++++++++++++++++++
-++++++++++++++++++
-++++++++++++++++++
+//++++++++++++++++++
+//++++++++++++++++++
+//++++++++++++++++++
 
 function UniqueIDProvider() {
 	this.counter = 0
@@ -356,12 +357,17 @@ function ngram_list2string( l ) { return l.join(NG_SEPARATOR) }
 function ngram_list2surfacestring( l ) { return l.join(NG_SEPARATOR_SURFACE) }
 function ngram_string2list( s ) {return s.split(NG_SEPARATOR) } 
 
-function	Ngram( asListofWords) {
+// constructor for--> Ngram
+//
+function Ngram( asListofWords) {
 	this.as_list = asListofWords ;
 	this.as_text = ngram_list2string(this.as_list) ;
 	this.as_surfacetext = ngram_list2surfacestring(this.as_list);
 
-	this.show = function() { return "ngram:  " + "|--list: " + this.as_list + "|--text: " + this.as_text + "|--surface: " + this.as_surfacetext ; }
+	this.stringRep = function() { return "Ngram----srep: " + "|--list: " + this.as_list + "|--text: " + this.as_text + "|--surface: " + this.as_surfacetext ; }
+	this.stringRep_terse = function() { return "|--text: " + this.as_text }
+
+	this.show = function() { this.stringRep() }
 }
 //TESTS
 var n1 = new Ngram( [ "list-1 1 item - first such beings found" ] );
@@ -416,11 +422,12 @@ function IsInTableById( item_id ) {
 }
 
 	// load - load an entry into the Table.
-	//		NB - the object instance is assumed to be hydrated ie. 
+	//		!!!! -NB - the object instance is assumed to be hydrated ie. 
 	//				to already have an internal id.
 	//				ie. It is not this routine's responsibility to assign an id to the Entry object.
 	//
 function LoadItemIntoTable( item_as_object ) {
+show( "-----enter LoadItemIntoTable" )
 		var is_in = ( this.IsInTableById( item_as_object.id ) )
 
 		if ( is_in ) {
@@ -432,12 +439,15 @@ function LoadItemIntoTable( item_as_object ) {
 			//increment_count() 
 			this.incr_count() 
 		}
+show( "-----exiting LoadItemIntoTable--return: "+ "was_in_table: " + is_in + "; id: " + item_as_object.id );
 		return { was_in_table: is_in, id: item_as_object.id }
 }
 
 
 
 // CONSTRUCTOR for:  NgramEntry
+// constructor for--> NgramEntry
+//
 //
 function NgramEntry(id, ngram, count, degree) { 
 	this.id = id;
@@ -445,6 +455,13 @@ function NgramEntry(id, ngram, count, degree) {
 	this.count=count; 
 	this.incr_count=increment_count
 	this.degree= degree; // ??needed??
+
+	this.stringRep = function() {
+		return "NgramEntry-- srep: " + "(id,count,ngram)=" + this.id  +  ", "  + this.count  +  ", "  + this.ngram.stringRep() 
+	}
+	this.stringRep_terse = function() {
+		return  "(id,count,ngram)=" + this.id  +  ", "  + this.count  +  ", "  + this.ngram.stringRep_terse() 
+	}
 }
 // TESTS
 ne1= new NgramEntry(57, new Ngram( ["as to this"] ),1,1)
@@ -461,9 +478,17 @@ function	NgramLink( id, pre_id, next_id ) {
 	this.next_id = next_id
 	this.count = 1
 	this.incr_count=increment_count
+
+show( "-----constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_id +", " +next_id )
+
 	this.stringRep = function() { return "NgramLink( " + this.id + "): " 
 		+ "(" + this.pre_id +")" 
-		+ "---| " + this.count + " |---->" + 
+		+ "---| " + "count: "+ this.count + " |---->" + 
+		"(" + this.next_id + ")" 
+	; }
+	this.stringRep_terse = function() { return "( " + this.id + "): " 
+		+ "(" + this.pre_id +")" 
+		+ "---| " + "count: "+ this.count + " |---->" + 
 		"(" + this.next_id + ")" 
 	; }
 }
@@ -483,6 +508,8 @@ nlnk1.stringRep()
 //		not unique classes
 
 
+// constructor for--> NgramEntryTable
+//
 function	NgramEntryTable() {
 	this.table = [];	// array of NgramEntry
 	this.count = 0
@@ -503,7 +530,7 @@ function	NgramEntryTable() {
 // TESTS
 show( "------------TESTS for NgramEntryTable();")
 var nt = new NgramEntryTable();
-nt.count()
+nt.count
 var ne1= new NgramEntry(57,new Ngram(["as to this"]),1,1)
 var ne2 = new NgramEntry(89,new Ngram(["moving","escalation"]),34,2)
 ne1
@@ -520,6 +547,8 @@ nt.IsInTableById(89)
 
 
 
+// constructor for--> NgramLinkTable
+//
 function	NgramLinkTable() {
 	this.table = [];	// array of NgramLinks
 	this.count = 0
@@ -558,6 +587,8 @@ nlt
 //  TODO - move most of the single-ngram/link related stuff 
 //		to another class eg.  NgramWrangler
 //
+// constructor for--> Corpus
+//
 function Corpus() {
 	this.ngrams = new NgramEntryTable() 
 	this.links = new NgramLinkTable() 
@@ -583,6 +614,7 @@ function Corpus() {
 
 		while ( ws.hasMore() ) {
 			nxw = ws.nextWord(); this.wc++ ;
+show( "--extract_Ngrams: next_word: " + nxw )
 			ngt.push(nxw);
 
 			var ngramList = ngramsFromWordRegister(ngt) ;
@@ -613,14 +645,86 @@ function Corpus() {
 		var kg1=null;
 		var kg2=null;
 		var kg_link = { ng1: [], ng2: [], count: 1 };
-		for ( var j=0; j < (kcount-2); j++ ) {
+		var j_uplimit = (kcount - 1) ;  // what is that in terms of NG_MAX_DEGREE ?
+
+		for ( var j=0; j < j_uplimit; j++ ) {
 			// get two consecutive kgrams
 			kg1 = kgl[j]; kg2 = kgl[j+1];
-			show( "consecutive kgrams ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
-			// ???-these kg's are now lists; when are they new'd into Ngrams???
+			show( "load_ngl===> consecutive kgrams ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
 			this.load_ngram_pair( kg1, kg2 );
+			var showMsg = "load_ngl===> called load_ngram_pair" + "--> j:" + j + " j_uplimit:" + j_uplimit 
+			this.show_tables( showMsg )
 		}
 	}
+
+	this.show_tables = function (msg) {
+	var nt = this.ngrams.table 
+	var lt = this.links.table 
+	var nc = this.ngrams.count
+	var lc = this.links.count
+
+
+	var i
+	show( "") ; 
+	show( "") ; 
+	show( "---------Corpus Tables-------<" ) 
+	show( "--< msg: " + msg)
+	show( "NgramEntry count: " + nc + " || " + "NgramLink count: " + lc )
+	show( "--------------ngrams------- count entries: length: " + nt.length + "||count: " + nc  )
+
+	// iterating thru the NgramEntryTable---	
+
+	// idea #1: 
+	// for (i in nt) show( "i: " + i + " ||==> " + (nt[i] === undefined) ? "_undefined_" : nt[i].stringRep() )
+
+	//
+	// idea #2: 
+/*
+	var ii=0
+	for (ii = 0; ii <= nc; ii++ ) {
+		show( "ii: " + ii + " ||==> " + (nt[ii] === undefined) ? "_undefined_" : nt[ii].stringRep() )
+	}
+*/
+
+	//
+	// idea #3: Array.forEach() 
+/*
+function logArrayElements(element, index, array) {
+  console.log('a[' + index + '] = ' + element);
+}
+
+// Notice that index 2 is skipped since there is no item at
+// that position in the array.
+[2, 5, , 9].forEach(logArrayElements);
+*/
+/* sample tests-------
+ var ss = function( ngramEntry, i, a ) { show(ngramEntry.stringRep()) }
+> nea.forEach(ss)
+===> NgramEntry-- srep: (id,count,ngram)=57, 1, Ngram----srep: |--list: as to this|--text: as to this|--surface: as to this
+===> NgramEntry-- srep: (id,count,ngram)=89, 34, Ngram----srep: |--list: aaa,asdasda|--text: aaa=asdasda|--surface: aaa asdasda
+*/
+
+
+	// a forEach() function, to display Ngram and Links entry-tables
+	var ss = function( e, i, a ) { show(e.stringRep_terse()) }
+	nt.forEach( ss )
+
+	show( "--------------------------" )
+
+	show( "--------------links------- count entries: length: " + lt.length + "||count: " + lc)
+/*
+	for (ii = 0; ii <= lc; ii++ ) {
+		show( "ii: " + ii + " ||==> " + (lt[ii] === undefined) ? "_undefined_" : lt[ii].stringRep() )
+	}
+*/
+	// same NgramEntryTable forEach() strategy for the links Array
+	lt.forEach(ss)
+
+
+	show( "--------------------------" )
+
+	}
+
 
 // load_ngram - load a single ngram
 //  NB -- incoming parm is a list, technically.
@@ -629,25 +733,29 @@ function Corpus() {
 	this.load_ngram = function ( ng_as_list ) {  
 		show( "---ENTER load_ngram" )
 		var ng_id = Ngram_GUID_Provider.next() 
-		var ng_as_Ngram = new Ngram(ng_as_list);
-		var ng_as_NgramEntry = new NgramEntry( ng_as_Ngram );
-		show( "--------load_ngram( ")
-		show( "||as-list:" + ng_as_list + "||" )
-		show( "as new Ngram: ||" ) ; ng_as_Ngram.show() 
-		show( "|| using id: " + ng_id )
+		var ng_as_Ngram = new Ngram(ng_as_list)
+//show("---load_ngram: built Ngram from ng_as_list-->srep: " + ng_as_Ngram.stringRep() )
+
+		// NB -- crucial bit-- assign an id to the NgramEntry
+		//			also, less crucially, assign a count=1
+		var ng_as_NgramEntry = new NgramEntry( ng_id, ng_as_Ngram, 1 )
+//show("---load_ngram: built NgramEntry from ng_as_Ngram-->srep:" + ng_as_NgramEntry.stringRep() )
+
 	/* the situation:
 		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
 	*/
 		//- load this Ngram into NgramEntryTable
-		show( "---call this.ngrams.load" )
 		this.ngrams.load( ng_as_NgramEntry );
-		show( "---called this.ngrams.load" )
+		show( "---load_ngram: called this.ngrams.load" )
 		return ng_id
 	}
 
 	this.load_link = function ( id_ng_1, id_ng_2 ) {  
 		var link_id = Link_GUID_Provider.next() 
+show("enter------load_link-- got new link_id: " + link_id )
+		//this.links.load( new NgramLink( this.link_id, id_ng_1, id_ng_2 ) )
 		this.links.load( new NgramLink( link_id, id_ng_1, id_ng_2 ) )
+show("exit------load_link-- got new link_id: " + link_id )
 		return link_id
 	}
 
@@ -655,6 +763,7 @@ function Corpus() {
 // The corpus must check whether the kgram(
 //
 	this.load_ngram_pair = function ( n1, n2 ) {
+show("======load_ngram_pair--ENTER==")
 		var id_n1 = null
 		var id_n2 = null
 		show( "------------call.load_ngram( ===|| " + n1 + " ||===" )
@@ -662,9 +771,10 @@ function Corpus() {
 		show( "------------call.load_ngram( ===|| " + n2 + " ||===" )
 		id_n2 = this.load_ngram( n2 )
 		var nlink = null
-		var nlink_id = 0
-		nlink_id = this.load_link( id_n1, id_n2 ) 
-		return { ng1: id_n1, ng2: id_n2, link_id: nlink_id } ;
+		var id_nlink = 0
+		id_nlink = this.load_link( id_n1, id_n2 ) 
+show("======load_ngram_pair--END: (id_n1, id_n2, link_id)=(" +id_n1 +","+ id_n2 +","+ id_nlink + ")" )
+		return { ng1: id_n1, ng2: id_n2, link_id: id_nlink } ;
 	}
 
 }
@@ -672,19 +782,28 @@ function Corpus() {
 //
 // TESTS
 //
+///
+//
+// ----->>LEFT_OFF-- to test -- Loading entire ngrams.js file at once, and verify tests.
+// LEFT_OFF-- to test corpus Ngram*Table load routines -- 
+//		esp. inspection of NgramEntryTable in Corpus
+show( "-----TESTS for Corpus-------" )
+Ngram_GUID_Provider.reset()
+Link_GUID_Provider.reset()
 c = new Corpus()
 var wtc = new WordSource(); 
 wtc.init( WordList_1 );
-// LEFT_OFF-- to test corpus Ngram*Table load routines -- 
-//		esp. inspection of NgramEntryTable in Corpus
+//
 c.analyze( wtc );
 c.summarize();
 	
 
-
+/* not ready for these tests yet--------------
 
 //
 //   Generator
+//
+// constructor for--> Generator
 //
 function Generator( list_of_corpuses ) {
 	this.corpuses = list_of_corpuses
@@ -694,3 +813,9 @@ function Generator( list_of_corpuses ) {
 	}
 
 }
+
+show( "-----TESTS for Generator-------" )
+
+---------*/
+
+
