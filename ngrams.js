@@ -117,6 +117,7 @@ var NG_SEPARATOR_SURFACE = " ";
 		// eg. "So=the=text=of=an=Ngram=looks=like=this"
 var NG_MAX_DEGREE = 3 ;
 
+var NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
 
 //  UTILs
 //
@@ -132,7 +133,7 @@ var IgnoreWords = [ "the","a","these","those", "etc" ];
 // qqq--what about punctuation??
 
 var WordList_1 = [ 
-"the", "arrival", "of", "the", "ﬂying"
+"the", "arrival", "of", "the", "of", "the", "arrival"
 ];
 
 var WordList_2 = [ 
@@ -221,24 +222,6 @@ wst.nextWord()
 wst.nextWord()
 wst.nextWord()
 
-/*
-var wt2 = new WordSource(); 
-wt2.init( WordList_2 );
-while ( wt2.hasMore() ) {
-	var w = wt2.nextWord()
-	show( "NextWord: " + w )
-}
-show( "== iter-test 1 -- end of WordList_2 ==" );
-show( "== reset and do it again-- WordList_2 ==" );
-wt2.reset( WordList_2 );
-while ( wt2.hasMore() ) {
-	var w = wt2.nextWord()
-	show( "NextWord: " + w )
-}
-show( "== iter-test 2 -- end of WordList_2 ==" );
-
-*/
-
 
 
 function load_NgramList( nl )
@@ -267,8 +250,6 @@ function tsl( l )
 	{
 		r.push( l.slice(j) );
 	}
-//show( "tsl iterative: l: "+l+"  return: "+r);
-	//return r.reverse();
 	return r;
 };
 
@@ -284,51 +265,14 @@ var lng = []; // list of Ngrams: gets built in this loop and LOADED
 a=["word-by-word", "shift-register","idea", "strategy" ];
 ngramsFromWordRegister(a)
 
-//
-// build Ngram(s) : Strategy #2
-//    word-by-word shift-register idea
-//
-//
-function buildNgram_text_2( ws ) 
-{
-show( "-->next Ngram -- buildNgram_text_2-------");
-	var ngt = []; // List of words-texts to build 
-	var nxw = null; // next-word from ws
-
-		while ( ws.hasMore() ) {
-			nxw = ws.nextWord(); 
-			ngt.push(nxw);
-
-			var ngramList = ngramsFromWordRegister(ngt) ;
-
-			show( "LOOP-while: Got ngramList from ngramsFromWordRegister-->"+ngramList+"<---" )
-
-			// LOAD list of Ngrams into Corpus ------
-
-			// shift items in ngt to make room for next Word,
-			// except for the first NG_MAX_DEGREE while-loop iters,
-			// which is while it fills up.
-			if ( ngt.length == NG_MAX_DEGREE )
-				ngt.shift();
-		} 
-	return show("------END buildNgram_text_2");
-}
-//
-// TESTS---------for buildNgram_text_2
-/*
-var wt3 = new WordSource(); 
-wt3.init( WordList_2 );
-buildNgram_text_2( wt3 );
-*/
-
-
-//++++++++++++++++++
-//++++++++++++++++++
-//++++++++++++++++++
 
 function UniqueIDProvider() {
 	this.counter = 0
-	this.next = function( ) { return ++this.counter } 
+	this.next = function( ) { 
+		this.counter++ 
+		//show( "UniqueIDProvider()-- exit with counter: " + this.counter )
+		return this.counter 
+	}
 	this.reset = function() { this.counter = 0 }
 }
 var Ngram_GUID_Provider = new UniqueIDProvider()
@@ -378,36 +322,11 @@ n1.show()
 n2.show()
 
 
-//---------------------------------
-//   'Generic' Functions for 'objects'
-//  js--able to attach generic functions to objects??
-//           Yes!
-/*
-function load( x ) {
-	this.table[ this.table.length ] = x
-}
-function A() {
-	this.table = []
-	this.load = load
-}
-function B() {
-	this.table = []
-	this.load = load
-}
-
-var A1=new A()
-A1.table[0]=1 ; A1.table[1]=10
-A1.load(2000)
-var B1=new B()
-B1.table[0]=5; B1.table[1]=50
-B1.load(3000)
-A1.table
-B1.table
-
-*/
 
 //-------------------------------------------------------------
-//  INTERFACE: Generic routines for "classes" with internal tables and assoc'd utils
+//  INTERFACE: TE_  "Table Entry"
+//		Generic routines for "classes" with internal tables and assoc'd utils
+//
 //-------------------------------------------------------------
 
 // increment_count - generic function for objects that have a (this.count)
@@ -415,54 +334,82 @@ B1.table
 function increment_count() { return ++this.count }
 
 function IsInTableById( item_id ) {
-		// NB - the loc'n within the table is not necessarily the same as 
-		// the item's id
 		var is_in = ( !(this.table[item_id] === undefined) )
-		// return { is_in_table: is_in, id: item_id }
-		// make this routine a strict boolean-return-value
-		return is_in
+		return { was_in: is_in, id: (is_in ? item_id: null) }
 }
 
-	// load - load an entry into the Table.
-	//		!!!! -NB - the object instance is assumed to be hydrated ie. 
-	//				to already have an internal id.
-	//				ie. It is not this routine's responsibility to assign an id to the Entry object.
-	//
+function IsInTableByValue ( entry_as_object ) {
+		var match_item = entry_as_object.matchByValueItem()
+		var match_result = false
+		var found_id = null
+	
+		// brain-dead linear-search
+		for( i=0; i < this.table.length; i++ ) {
+			if ( !(this.table[i] === undefined) ) {
+				if ( this.table[i].matchByValueItem() == match_item ) {
+					match_result = true; 
+					found_id = this.table[i].id;
+					break;
+				}
+			}
+		}
+show( "====exiting IsInTableByValue: match_item: " + match_item + "| result: " + match_result )
+		return { was_in: match_result, id: found_id } ;
+	}
 
 function AssignInternalIdtoTableEntry( e ) { e.id = e.GUID_Provider.next() ; }
 
-// 
-
-function LoadItemIntoTable( item_as_object ) {
-show( "-----enter LoadItemIntoTable" )
+function LoadItemIntoTable( item_as_object) {
+//function LoadItemIntoTable( item_as_object, update_pre_existing_entry ) {
+//ttt
+show( "----------------enter LoadItemIntoTable" )
 	var retVal = {};
 
 	// step 1:  check if already in Table
+show( "----------------LoadItemIntoTable--Step-1" )
 		var lookupByValue = ( !item_as_object.InternalIdHasBeenAssigned() )
 
-		var is_in = ( 
-			( lookupByValue ) ?
-			this.IsInTableByValue( item_as_object ) :
-			this.IsInTableById( item_as_object.id ) )
+show( "----------------LoadItemIntoTable--Step-1-b" )
+		var lookup_result = ( lookupByValue ) ?  this.IsInTableByValue( item_as_object ) : this.IsInTableById( item_as_object.id ) ;
+
+		var is_in = lookup_result.was_in ;
 
 	// step 2:  check if to assign InternalId
+show( "----------------LoadItemIntoTable--Step-2" )
 		if ( is_in && lookupByValue )
 			AssignInternalIdtoTableEntry(item_as_object)
 		if ( !is_in )
 			AssignInternalIdtoTableEntry(item_as_object) ;
 		
-	// step 3: update EntryTable
+
+		var id_to_do_table_update = null ;
+		id_to_do_table_update = ( is_in ) ?
+			( (lookupByValue) ? lookup_result.id : item_as_object.id ) 
+			: item_as_object.id ;
+			
+show( "----------------LoadItemIntoTable--Step-3" )
+show( "// step 3: update EntryTable -- lookupByValue: " + lookupByValue);
+show( "// step 3: update EntryTable -- is_in: " + is_in);
+show( "// step 3: update EntryTable -- id_to_do_table_update: " + id_to_do_table_update);
+	// step 3: update EntryTable : UPDATE an eisting Entry or ADD a new Entry 
+			//var update_pre_existing_entry = true  // ttt
+			var update_pre_existing_entry = NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER 
 		if ( is_in ) {
-			(this.table[ item_as_object.id ]).count += 1
+			// ?UPDATE existing Entry
+			if ( update_pre_existing_entry ) {
+				(this.table[ id_to_do_table_update ]).count += 1
+				show( "--------UPDATE existing Entry: index: " + id_to_do_table_update + ", count: " + (this.table[ id_to_do_table_update ]).count ) ;
+			}
 		}
 		else {
-			this.table[ item_as_object.id ] = item_as_object
-			// up the counter of the items in table
+			// ADD new Entry
+			this.table[ id_to_do_table_update ] = item_as_object
+			// up the counter of the (unique) items in the overall table
 			this.incr_count() 
 		}
 		
-		retVal = { was_in_table: is_in, id: item_as_object.id }
-show( "-----exiting LoadItemIntoTable--return: "+ "was_in_table: "+ retVal.was_in_table + ", id: "+retVal.id )
+		retVal = { was_in_table: is_in, id: this.table[ id_to_do_table_update ].id  }
+show( "----------------exiting LoadItemIntoTable--return: "+ "was_in_table: "+ retVal.was_in_table + ", id: "+retVal.id )
 		return retVal
 }
 
@@ -487,7 +434,6 @@ function NgramEntry(id, ngram, count, degree) {
 		return "NgramEntry-- srep: " + "(id,count,ngram)=" + this.idForDisplay() +  ", "  + this.count  +  ", "  + this.ngram.stringRep() 
 	}
 	this.stringRep_terse = function() {
-		//return  "(id,count,ngram)=" + this.id  +  ", "  + this.count  +  ", "  + this.ngram.stringRep_terse() 
 		return  "[id] "+ this.idForDisplay()  +  ", count: "  + this.count  +  ", text: "  + this.ngram.stringRep_terse() 
 	}
 
@@ -511,7 +457,7 @@ function	NgramLink( id, pre_id, next_id ) {
 	this.count = 1
 	this.incr_count=increment_count
 
-show( "-----constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_id +", " +next_id )
+show( "----------constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_id +", " +next_id )
 
 	this.stringRep = function() { return "NgramLink( " + this.id + "): " 
 		+ "(" + this.pre_id +")" 
@@ -526,6 +472,7 @@ show( "-----constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_
 
 	this.GUID_Provider = Link_GUID_Provider
 	this.InternalIdHasBeenAssigned = function() { return !(this.id === null) ; }
+	this.matchByValueItem = function() { return this.pre_id +"|" + this.next_id }
 }
 //
 // TESTS
@@ -538,41 +485,16 @@ nlnk1.stringRep()
 
 
 
-// TODO - create a generic "EntryTable" class
-//    item-specific tables are then *instance* of this class, 
-//		not unique classes
-
-
 // constructor for--> NgramEntryTable
 //
 function	NgramEntryTable() {
 	this.table = [];	// array of NgramEntry
 	this.count = 0
+
 	this.incr_count=increment_count
-
 	this.IsInTableById = IsInTableById
+	this.IsInTableByValue = IsInTableByValue ;
 
-	this.IsInTableByValue = function( ngram_entry_as_object ) {
-		var match_item = ngram_entry_as_object.ngram.as_text
-		var match_result = false
-	
-		// brain-dead linear-search
-		for( i=0; i < this.table.length; i++ ) {
-			if ( !(this.table[i] === undefined) ) {
-				if ( this.table[i].ngram.as_text == match_item ) {
-					match_result = true; break;
-				}
-			}
-		}
-show( "====exiting NgramEntryTable.IsInTableByValue: match_item: " + match_item + "| result: " + match_result )
-		return match_result 
-	}
-
-	// load - load an Entry into the Table.
-	//		NB - the object instance is assumed to be hydrated ie. 
-	//				to already have an internal id.
-	//				ie. It is not this routine's responsibility to assign an id to the Entry object.
-	//
 	this.load = LoadItemIntoTable
 
 	// NEED a getById routine
@@ -607,26 +529,12 @@ function	NgramLinkTable() {
 	this.incr_count = increment_count
 
 	this.IsInTableById = IsInTableById 
+	this.IsInTableByValue = IsInTableByValue
+
 	this.load = LoadItemIntoTable
+	//this.load = function( item_as_object ) { return LoadItemIntoTable( item_as_object, true ) }
+//ttt
 
-	this.matchByValueItem = function() { return this.pre_id +"|" + this.next_id }
-
-// LEFT_OFF--------this routine is the generic one; if it works, promote it to generic level.
-	this.IsInTableByValue = function( ngramLink_entry_as_object ) {
-		var match_item = ngramLink_entry_as_object.matchByValueItem()
-		var match_result = false
-	
-		// brain-dead linear-search
-		for( i=0; i < this.table.length; i++ ) {
-			if ( !(this.table[i] === undefined) ) {
-				if ( this.table[i].matchByValueItem() == match_item ) {
-					match_result = true; break;
-				}
-			}
-		}
-show( "====exiting NgramLinkTable.IsInTableByValue: match_item: " + match_item + "| result: " + match_result )
-		return match_result 
-	}
 }
 //
 // TESTS
@@ -664,6 +572,7 @@ function Corpus() {
 	this.ngrams = new NgramEntryTable() 
 	this.links = new NgramLinkTable() 
 	this.wc = 0 	// wordcount
+	this.allWords = []
 
 	this.analyze = function( ws ) {
 		show( "Corpus.analyze== : wordSource into NgramEntryTable" );
@@ -685,13 +594,15 @@ function Corpus() {
 
 		while ( ws.hasMore() ) {
 			nxw = ws.nextWord(); this.wc++ ;
-show( "--extract_Ngrams: next_word: " + nxw )
 			ngt.push(nxw);
+			this.allWords.push(nxw) 
 
-			var ngramList = ngramsFromWordRegister(ngt) ;
+show("--+++++++++++++++++++++ raw Word Register ngt: " + ngt)
+show("--+++++++++++++++++++++ next word            : " + nxw)
+show("--+++++++++++++++++++++ all  words           : " + "||"+this.allWords+"||")
 
 			// LOAD list of Ngrams into Corpus ------
-			this.load_ngl( ngramList ); 
+			this.load_ngl( ngt );  // NB -- raw list of words from word-register, not ngrams
 
 			// shift items in ngt to make room for next Word,
 			// except for the first NG_MAX_DEGREE while-loop iters,
@@ -707,17 +618,18 @@ show( "--extract_Ngrams: next_word: " + nxw )
 //		with their pairwise links
 //
 /* ----
-> r
+    from the REPL:
+> r		// word register 											--- register contents :  r
 [ 'the', 'arrival', 'of', 'the', 'flying' ]
-> prev_kgrams = r.slice(0,r.length-1)
+> prev_words = r.slice(0,r.length-1)				---	previous words		:	r.slice(0,r.length-1)
 [ 'the', 'arrival', 'of', 'the' ]
-> last = r.slice(r.length-1)
+> next_word = r.slice(r.length-1)						--- next word					:	r.slice(r.length-1)
 [ 'flying' ]
-> prev_kgrams
+> prev_words
 [ 'the', 'arrival', 'of', 'the' ]
 > next_word
 [ 'flying' ]
-> tsl(prev_kgrams)
+> prev_kgrams = tsl(prev_words)							--- prev_kgrams				:	tsl(prev_words)
 [ [ 'the', 'arrival', 'of', 'the' ],
   [ 'arrival', 'of', 'the' ],
   [ 'of', 'the' ],
@@ -725,104 +637,100 @@ show( "--extract_Ngrams: next_word: " + nxw )
 > next_word
 [ 'flying' ]
 
+ie.
+> r		// word register 											--- register contents :  r
+> prev_words = r.slice(0,r.length-1)				---	previous words		:	r.slice(0,r.length-1)
+> next_word = r.slice(r.length-1)						--- next word					:	r.slice(r.length-1)
+> prev_kgrams = tsl(prev_words)							--- prev_kgrams				:	tsl(prev_words)
+
 
 	Strategy:
 
 		Given  
-		prev_kgrams = kgl.slice(0, kgl.length-1 )
-		next_word = kgl.slice(kgl.length-1)
+		r  // register of words under consideration
+		prev_words = r.slice(0, r.length-1 )
+		next_word = r.slice(r.length-1)
+		prev_kgrams = tsl( prev_words )
 
 		Build a link 
 			from each single prev_kgram to next_word
 
-	  buildNgramEntry(next_word)
+	  ne_next_word = buildNgramEntry(next_word)
 		foreach kgram in prev_grams:
-			buildNgramEntry( kgram )
-			buildLinkEntry( kgram --> next_word )
+			ne_kgram = buildNgramEntry( kgram )
+			buildLinkEntry( ne_kgram --> ne_next_word )
 		endfor
 			
 --- */
 //
-	this.load_ngl = function( kgl ) {
 
-		show( "load_ngl: ngram list: <" + kgl + ">" )
+	this.load_ngl = function( w_reg ) {
+	// w_reg  :  contents of the word-register; contains the last NG_MAX_DEGREE words read in.
 
-		// kgl - list of kkgrams, k=N to 1
-		var prev_kg = null;  // previous kgram
-		var kcount = kgl.length ;  // number of kgrams in the list
+		show( "load_ngl: ngram list: <" + w_reg + ">" )
 
+/*
+	LEFT_OFF :  implement the following -------
+> r		// word register 											--- register contents :  r
+> next_word = r.slice(r.length-1)						--- next word					:	r.slice(r.length-1)
+> prev_words = r.slice(0,r.length-1)				---	previous words		:	r.slice(0,r.length-1)
+> prev_kgrams = tsl(prev_words)							--- prev_kgrams				:	tsl(prev_words)
+*/
+		var wcount = w_reg.length ;  // number of words in the word-register list
+		var next_word = w_reg.slice(w_reg.length-1)
+		var prev_words = w_reg.slice(0, w_reg.length-1 )
+		var prev_kgrams = tsl(prev_words)
+		// var j_uplimit = (wcount - 1) ;  // what is that in terms of NG_MAX_DEGREE ?
 		var kg1=null;
 		var kg2=null;
-		var prev_kgrams = kgl.slice(0, kgl.length-1 )
-		var next_word = kgl.slice(kgl.length-1)
-		show( "load_ngl: ngram list: <" + kgl + ">" + ", prev_kgrams: " + prev_kgrams + ", next_word: " + next_word )
 
-		var kg_link = { ng1: [], ng2: [], count: 1 };
-		var j_uplimit = (kcount - 1) ;  // what is that in terms of NG_MAX_DEGREE ?
+		show( "load_ngl: ngram list: <" + w_reg + ">" + ", prev_words: " + prev_words + ", next_word: " + next_word )
 
-		for ( var j=0; j < j_uplimit; j++ ) {
-			// Get the next kgram, and load it with next_word
-			// But note: Each kgram-list has nextWord at the end,
-			// so we must (non-destructively) remove it, 
-			// and grab the next_word which sits as the final list-element
-			kg1 = (kgl[j]).slice(0,(kgl[j]).length - 1) ; 		
-			kg2 = next_word;
-			show( "load_ngl===> consecutive kgrams ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
-			this.load_ngram_pair( kg1, kg2 );
-			var showMsg = "load_ngl===> called load_ngram_pair" + "--> j:" + j + " j_uplimit:" + j_uplimit 
-			this.show_tables( showMsg )
-		}
-	}
+		// Each kgram in the list of prev_grams is linked with the next_word
 
-	this.load_ngl_ORIG = function( kgl ) {
+		kg2 = next_word;
+		var j_uplimit = prev_kgrams.length ;  // ie. prev_kgrams.length == NG_MAX_DEGREE-factorial
 
-		// kgl - list of kkgrams, k=N to 1
-		var prev_kg = null;  // previous kgram
-		var kcount = kgl.length ;  // number of kgrams in the list
-	
-		//show( "corpus_load_ngl: ngram list: <" + kgl + ">" )
-		var kg1=null;
-		var kg2=null;
-		var kg_link = { ng1: [], ng2: [], count: 1 };
-		var j_uplimit = (kcount - 1) ;  // what is that in terms of NG_MAX_DEGREE ?
+		var update_nextWord_count = true
 
 		for ( var j=0; j < j_uplimit; j++ ) {
-			// get two consecutive kgrams
-			kg1 = kgl[j]; kg2 = kgl[j+1];
-			show( "load_ngl===> consecutive kgrams ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
-			this.load_ngram_pair( kg1, kg2 );
-			var showMsg = "load_ngl===> called load_ngram_pair" + "--> j:" + j + " j_uplimit:" + j_uplimit 
+			kg1 = prev_kgrams[j] 
+			show( "load_ngl===> kgram loop:  ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
+			
+			update_nextWord_count = (j==0)  // Update only on first iter of this loop
+			this.load_ngram_pair( kg1, kg2, update_nextWord_count );
+			var showMsg = ""
 			this.show_tables( showMsg )
 		}
 	}
 
 	this.show_tables = function (msg) {
-	var nt = this.ngrams.table 
-	var lt = this.links.table 
-	var nc = this.ngrams.count
-	var lc = this.links.count
-
-
-	// a forEach() function, to display Ngram and Links entry-tables
-	var ss = function( e, i, a ) { show("    " + e.stringRep_terse()) }
-	var i
-	show( "") ; 
-	show( "") ; 
-	show( "---------Corpus Tables-------<" ) 
-	show( "--< msg: " + msg)
-	show( "NgramEntry count: " + nc + " || " + "NgramLink count: " + lc )
-
-	show( "--------------ngrams------- count: " + nc  )
-	nt.forEach( ss )
-	show( "--------------------------" )
-
-	show( "--------------links ------- count: " + lc)
-	show( " (linkId) [ngramId]                 [ngramId] " )
-	lt.forEach(ss)
-	show( "--------------------------" )
-	show( "") ; 
-	show( "") ; 
-
+		var nt = this.ngrams.table 
+		var lt = this.links.table 
+		var nc = this.ngrams.count
+		var lc = this.links.count
+	
+	
+		// a forEach() function, to display Ngram and Links entry-tables
+		var ss = function( e, i, a ) { show("    " + e.stringRep_terse()) }
+		var i
+		show( "") ; 
+		show( "") ; 
+		show( "---------Corpus Tables-------<" ) 
+		show( "--< msg: " + msg)
+		show("--All  words     : " + "||"+this.allWords+"||")
+		show( "NgramEntry count: " + nc + " || " + "NgramLink count: " + lc )
+	
+		show( "--------------ngrams------- count: " + nc  )
+		nt.forEach( ss )
+		show( "--------------------------" )
+	
+		show( "--------------links ------- count: " + lc)
+		show( " (linkId) [ngramId]                 [ngramId] " )
+		lt.forEach(ss)
+		show( "--------------------------" )
+		show( "") ; 
+		show( "") ; 
 	}
 
 
@@ -830,7 +738,7 @@ show( "--extract_Ngrams: next_word: " + nxw )
 //  NB -- incoming parm is a list, technically.
 //    It must be new'd into an instance of type Ngram
 //
-	this.load_ngram = function ( ng_as_list ) {  
+	this.load_ngram = function ( ng_as_list, update_entry_count ) {  
 		show( "---ENTER load_ngram" )
 	/* the situation / 
 		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
@@ -838,38 +746,66 @@ show( "--extract_Ngrams: next_word: " + nxw )
 
 		var ng_id = null;
 		var ng_as_Ngram = new Ngram(ng_as_list)
-//show("---load_ngram: built Ngram from ng_as_list-->srep: " + ng_as_Ngram.stringRep() )
+show("---load_ngram: built Ngram from ng_as_list-->srep: " + ng_as_Ngram.stringRep() )
 
+		// NB- Responsibility for InternalId assignment is lower down.
 		var ng_as_NgramEntry = new NgramEntry( null, ng_as_Ngram, 1 )
-		ng_id = this.ngrams.load( ng_as_NgramEntry );
-		show( "---load_ngram: called this.ngrams.load" )
-		return ng_id
+
+		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = update_entry_count
+		var load_result = this.ngrams.load( ng_as_NgramEntry, update_entry_count );
+		//retVal = { was_in_table: is_in, id: this.table[ id_to_do_table_update ].id  }
+
+		show( "---load_ngram: called this.ngrams.load---loadresuld id: " + load_result.id)
+		return load_result.id 
 	}
 
 	this.load_link = function ( id_ng_1, id_ng_2 ) {  
-		var link_id = Link_GUID_Provider.next() 
-show("enter------load_link-- got new link_id: " + link_id )
-		//this.links.load( new NgramLink( this.link_id, id_ng_1, id_ng_2 ) )
-		this.links.load( new NgramLink( link_id, id_ng_1, id_ng_2 ) )
-show("exit------load_link-- got new link_id: " + link_id )
+show("enter------load_link-- " + "id_ng_1: "+id_ng_1+", id_ng_2: "+id_ng_2 )
+		// responsibility for assigning InternalId for the NgramLink lies lower down.
+		//			hence pass "null" as the Id to the NgramLink constructor
+			NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
+		var loadResult = this.links.load( new NgramLink( null, id_ng_1, id_ng_2 ) )
+		var link_id = loadResult.id
+show("exit------load_link-- got newORpre-existing link_id: " + link_id )
 		return link_id
 	}
 
 // submit the two kgrams to the Corpus for LOADing
 // The corpus must check whether the kgram(
 //
-	this.load_ngram_pair = function ( n1, n2 ) {
+	this.load_ngram_pair = function ( n1, n2 , update_nextWord_count ) {
 show("======load_ngram_pair--ENTER==")
+		//
+		//		update_nextWord_count - flag whether to do count-update for n2, or not.
+		// NB-- 2nd arg to load_ngram is a flag as to whether or not to
+		// update the 'occurrence counter' on pre-existing entries
+		// So, assuming that the n2 arg in load_ngram_pair is the 'next-word',
+		// then we want to do that update, BUT only on the first iter of the loop.
+		//
+		// As for n1, which is a 'previous' kgram, (i think) we never update count,
+		// since we don't need it for probability determination... i think.
+		//  TODO---revisit this later...
+		//
+
 		var id_n1 = null
 		var id_n2 = null
+		
 		show( "------------call.load_ngram( ===|| " + n1 + " ||===" )
-		id_n1 = this.load_ngram( n1 )	
+		// Update count for n1 ?  -- never
+		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = false
+		id_n1 = this.load_ngram( n1, NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER )
+		
 		show( "------------call.load_ngram( ===|| " + n2 + " ||===" )
-		id_n2 = this.load_ngram( n2 )
-		var nlink = null
+		// Update count for n2 ?  -- as per given flag
+		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = update_nextWord_count
+		id_n2 = this.load_ngram( n2, NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER )
+
+		// Update count for the Link? -- always
 		var id_nlink = 0
+		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
 		id_nlink = this.load_link( id_n1, id_n2 ) 
-show("======load_ngram_pair--END: (id_n1, id_n2, link_id)=(" +id_n1 +","+ id_n2 +","+ id_nlink + ")" )
+
+show("======load_ngram_pair--END: (link_id, id_n1, id_n2)=(" + id_nlink +", "+id_n1 +", "+ id_n2 + ")" )
 		return { ng1: id_n1, ng2: id_n2, link_id: id_nlink } ;
 	}
 
@@ -880,10 +816,7 @@ show("======load_ngram_pair--END: (id_n1, id_n2, link_id)=(" +id_n1 +","+ id_n2 
 //
 ///
 //
-// ----->>-- to test -- Loading entire ngrams.js file at once, and verify tests.
 
-// LEFT_OFF-- to test corpus Ngram*Table load routines -- 
-//		esp. lookup-by-text for ngrams 
 
 show( "-----TESTS for Corpus-------" )
 Ngram_GUID_Provider.reset()
