@@ -115,17 +115,25 @@ var NG_SEPARATOR = "="; // UsedNG_SEPARATORtoNG_SEPARATORseparateNG_SEPARATORwor
 
 var NG_SEPARATOR_SURFACE = " "; 
 		// eg. "So=the=text=of=an=Ngram=looks=like=this"
-var NG_MAX_DEGREE = 3 ;
+var NG_MAX_DEGREE = 4 ;
 
 var NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
 
+var NG_GLOBAL_DEBUG_LEVEL = 0
+
 //  UTILs
 //
-function show(msg) {
-console.log("===> "+msg);
+function show_d(debug_level,msg) {
+	if ( NG_GLOBAL_DEBUG_LEVEL >= debug_level )
+		console.log("===> "+msg);
 }
+function show(msg) { show_d(0,msg) }
+function show_debug(msg) { show_d(1,msg) }
 // TESTS
+show("NG_GLOBAL_DEBUG_LEVEL: "+NG_GLOBAL_DEBUG_LEVEL)
 show("kkk")
+show_d( 1, "a debug msg")
+show_debug("----debug--")
 
 // ---------- setup re: source-texts to use
 //
@@ -133,8 +141,47 @@ var IgnoreWords = [ "the","a","these","those", "etc" ];
 // qqq--what about punctuation??
 
 var WordList_1 = [ 
-"the", "arrival", "of", "the", "of", "the", "arrival"
+"a","b","c","d","a","b",
+"c","c","a","b","c","a",
+"c","d","w",
+"c","d","x",
+"c","d","y",
+"c","d","z",
+"e","a","e","a","a","b",
+"c","d","x","s",
+"c","d","x","t",
+"c","d","x","u",
+"c","d","x","v",
+"d","x","v",
+"d","x","v",
+"d","x","s",
+"d","x","t",
+"c","d","x",
+"e","a","f","a","a","b",
+"e","a","d","a","a","b",
+"e","a","c","a","a","b"
 ];
+/*
+"a","b","c","d","g","f","b","c","b","f","c","d","c","f","a","h","g","a","b",
+"a","d","c","d","c","d","b","c","d","f","c","d","c","c","d","c","d","d","b",
+"a","b","h","d","g","f","b","h","b","f","h","d","c","f","a","e","g","a","b" ];
+*/
+/*
+var WordList_1 = [ 
+"the", "arrival", "of", "the", "flying", "saucers", "of", "the", "arrival",
+"can", "conceive", "of", "as", "human;", "that", "they", 
+"claimed", "to", "have", "found.", "How", "about", "some", "saucers","radar-mapping","domains","!", "punctuation", "?",
+"Our", "'Venus'", "is", "flying","related", "to", "your", "flying","saucers","arrival","'Venus'", "in", "certain", "time-possibility",
+"domains.", "Its", "elements", "are", "flying","saucers","archetypal.", "To", "Venus","a", "few,", "it", "is", "thousands", "of",
+"gigabytes", "of", "full-resolution", "radar-mapping", "data,", "to", "be", "endlessly",
+"interpolated,", "convolved,", "cross-indexed", "and", "correlated."
+];
+*/
+
+/*
+"are", "not", "necessarily", "based", "on", "the",
+"cerebral", "and", "nervous", "structures", "that", "we",
+*/
 
 var WordList_2 = [ 
 "of", "nuclear", "energy", "in", "1945",
@@ -310,10 +357,12 @@ function Ngram( asListofWords) {
 	this.as_surfacetext = ngram_list2surfacestring(this.as_list);
 
 	this.stringRep = function() { return "Ngram----srep: " + "|--list: " + this.as_list + "|--text: " + this.as_text + "|--surface: " + this.as_surfacetext ; }
-	this.stringRep_terse = function() { return "|--text: " + this.as_text }
+	//this.stringRep_terse = function() { return "|--text: " + this.as_text }
+	this.stringRep_terse = function() { return this.as_text+"	|deg: "+this.degree }
 
 	this.show = function() { this.stringRep() }
 	this.matchByValueItem = function() { return this.as_text }
+	this.degree = this.as_list.length
 }
 //TESTS
 var n1 = new Ngram( [ "list-1 1 item - first such beings found" ] );
@@ -353,7 +402,7 @@ function IsInTableByValue ( entry_as_object ) {
 				}
 			}
 		}
-show( "====exiting IsInTableByValue: match_item: " + match_item + "| result: " + match_result )
+show_debug( "====exiting IsInTableByValue: match_item: " + match_item + "| result: " + match_result )
 		return { was_in: match_result, id: found_id } ;
 	}
 
@@ -361,21 +410,20 @@ function AssignInternalIdtoTableEntry( e ) { e.id = e.GUID_Provider.next() ; }
 
 function LoadItemIntoTable( item_as_object) {
 //function LoadItemIntoTable( item_as_object, update_pre_existing_entry ) {
-//ttt
-show( "----------------enter LoadItemIntoTable" )
+show_debug( "----------------enter LoadItemIntoTable" )
 	var retVal = {};
 
 	// step 1:  check if already in Table
-show( "----------------LoadItemIntoTable--Step-1" )
+show_debug( "----------------LoadItemIntoTable--Step-1" )
 		var lookupByValue = ( !item_as_object.InternalIdHasBeenAssigned() )
 
-show( "----------------LoadItemIntoTable--Step-1-b" )
+show_debug( "----------------LoadItemIntoTable--Step-1-b" )
 		var lookup_result = ( lookupByValue ) ?  this.IsInTableByValue( item_as_object ) : this.IsInTableById( item_as_object.id ) ;
 
 		var is_in = lookup_result.was_in ;
 
 	// step 2:  check if to assign InternalId
-show( "----------------LoadItemIntoTable--Step-2" )
+show_debug( "----------------LoadItemIntoTable--Step-2" )
 		if ( is_in && lookupByValue )
 			AssignInternalIdtoTableEntry(item_as_object)
 		if ( !is_in )
@@ -387,18 +435,17 @@ show( "----------------LoadItemIntoTable--Step-2" )
 			( (lookupByValue) ? lookup_result.id : item_as_object.id ) 
 			: item_as_object.id ;
 			
-show( "----------------LoadItemIntoTable--Step-3" )
-show( "// step 3: update EntryTable -- lookupByValue: " + lookupByValue);
-show( "// step 3: update EntryTable -- is_in: " + is_in);
-show( "// step 3: update EntryTable -- id_to_do_table_update: " + id_to_do_table_update);
+show_debug( "----------------LoadItemIntoTable--Step-3" )
+show_debug( "// step 3: update EntryTable -- lookupByValue: " + lookupByValue);
+show_debug( "// step 3: update EntryTable -- is_in: " + is_in);
+show_debug( "// step 3: update EntryTable -- id_to_do_table_update: " + id_to_do_table_update);
 	// step 3: update EntryTable : UPDATE an eisting Entry or ADD a new Entry 
-			//var update_pre_existing_entry = true  // ttt
 			var update_pre_existing_entry = NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER 
 		if ( is_in ) {
 			// ?UPDATE existing Entry
 			if ( update_pre_existing_entry ) {
 				(this.table[ id_to_do_table_update ]).count += 1
-				show( "--------UPDATE existing Entry: index: " + id_to_do_table_update + ", count: " + (this.table[ id_to_do_table_update ]).count ) ;
+				show_debug( "--------UPDATE existing Entry: index: " + id_to_do_table_update + ", count: " + (this.table[ id_to_do_table_update ]).count ) ;
 			}
 		}
 		else {
@@ -409,7 +456,7 @@ show( "// step 3: update EntryTable -- id_to_do_table_update: " + id_to_do_table
 		}
 		
 		retVal = { was_in_table: is_in, id: this.table[ id_to_do_table_update ].id  }
-show( "----------------exiting LoadItemIntoTable--return: "+ "was_in_table: "+ retVal.was_in_table + ", id: "+retVal.id )
+show_debug( "----------------exiting LoadItemIntoTable--return: "+ "was_in_table: "+ retVal.was_in_table + ", id: "+retVal.id )
 		return retVal
 }
 
@@ -426,7 +473,7 @@ function NgramEntry(id, ngram, count, degree) {
 	this.ngram = ngram ;
 	this.count=count; 
 	this.incr_count=increment_count
-	this.degree= degree; // ??needed??
+	this.degree= ngram.degree
 
 	this.idForDisplay = function() { return (this.id == null ? "_null_" : this.id) }
 
@@ -434,7 +481,7 @@ function NgramEntry(id, ngram, count, degree) {
 		return "NgramEntry-- srep: " + "(id,count,ngram)=" + this.idForDisplay() +  ", "  + this.count  +  ", "  + this.ngram.stringRep() 
 	}
 	this.stringRep_terse = function() {
-		return  "[id] "+ this.idForDisplay()  +  ", count: "  + this.count  +  ", text: "  + this.ngram.stringRep_terse() 
+		return  "[id]	"+ this.idForDisplay()  +  "	count: "  + this.count  +  "	|text: "  + this.ngram.stringRep_terse() 
 	}
 
 	this.GUID_Provider = Ngram_GUID_Provider 
@@ -457,7 +504,7 @@ function	NgramLink( id, pre_id, next_id ) {
 	this.count = 1
 	this.incr_count=increment_count
 
-show( "----------constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_id +", " +next_id )
+show_debug( "----------constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " +pre_id +", " +next_id )
 
 	this.stringRep = function() { return "NgramLink( " + this.id + "): " 
 		+ "(" + this.pre_id +")" 
@@ -466,9 +513,20 @@ show( "----------constructing NgramLink: ( id, pre_id, next_id ) = " + id +", " 
 	; }
 	this.stringRep_terse = function() { return "( " + this.id + "):    " 
 		+ "[" + this.pre_id +"]" 
-		+ "---| " + "count: "+ this.count + " |---->" + 
-		"[" + this.next_id + "]" 
+		+ "------>|" + this.next_id + "]" 
+		+ "---| " + "count: "+ this.count 
 	; }
+
+// LEFT_OFF ----- function to show NgramLink with text of linked Ngrams
+/*
+	this.stringRep_verbose = function() { return "( " + this.id + "):    " 
+		+ "[" + this.pre_id +"]" 
+		+ "(" + LookupById(this.pre_id).as_text +")" 
+		+ "------>|" + this.next_id + "]" 
+		+ "(" + LookupById(this.next_id).as_text +")" 
+		+ "---| " + "count: "+ this.count 
+	; }
+*/
 
 	this.GUID_Provider = Link_GUID_Provider
 	this.InternalIdHasBeenAssigned = function() { return !(this.id === null) ; }
@@ -533,8 +591,6 @@ function	NgramLinkTable() {
 
 	this.load = LoadItemIntoTable
 	//this.load = function( item_as_object ) { return LoadItemIntoTable( item_as_object, true ) }
-//ttt
-
 }
 //
 // TESTS
@@ -597,9 +653,9 @@ function Corpus() {
 			ngt.push(nxw);
 			this.allWords.push(nxw) 
 
-show("--+++++++++++++++++++++ raw Word Register ngt: " + ngt)
-show("--+++++++++++++++++++++ next word            : " + nxw)
-show("--+++++++++++++++++++++ all  words           : " + "||"+this.allWords+"||")
+show_debug("--+++++++++++++++++++++ raw Word Register ngt: " + ngt)
+show_debug("--+++++++++++++++++++++ next word            : " + nxw)
+show_debug("--+++++++++++++++++++++ all  words           : " + "||"+this.allWords+"||")
 
 			// LOAD list of Ngrams into Corpus ------
 			this.load_ngl( ngt );  // NB -- raw list of words from word-register, not ngrams
@@ -610,7 +666,7 @@ show("--+++++++++++++++++++++ all  words           : " + "||"+this.allWords+"||"
 			if ( ngt.length == NG_MAX_DEGREE )
 				ngt.shift();
 		} 
-	show( "-->END extract_Ngrams----" + "wordcount: " + wc + "  ngramcount: ???" )
+	show_debug( "-->END extract_Ngrams----" + "wordcount: " + wc + "  ngramcount: ???" )
 	return this.wc 
 	} 
 
@@ -667,10 +723,10 @@ ie.
 	this.load_ngl = function( w_reg ) {
 	// w_reg  :  contents of the word-register; contains the last NG_MAX_DEGREE words read in.
 
-		show( "load_ngl: ngram list: <" + w_reg + ">" )
+		show_debug( "load_ngl: ngram list: <" + w_reg + ">" )
 
 /*
-	LEFT_OFF :  implement the following -------
+	:  implement the following -------
 > r		// word register 											--- register contents :  r
 > next_word = r.slice(r.length-1)						--- next word					:	r.slice(r.length-1)
 > prev_words = r.slice(0,r.length-1)				---	previous words		:	r.slice(0,r.length-1)
@@ -684,7 +740,7 @@ ie.
 		var kg1=null;
 		var kg2=null;
 
-		show( "load_ngl: ngram list: <" + w_reg + ">" + ", prev_words: " + prev_words + ", next_word: " + next_word )
+		show_debug( "load_ngl: ngram list: <" + w_reg + ">" + ", prev_words: " + prev_words + ", next_word: " + next_word )
 
 		// Each kgram in the list of prev_grams is linked with the next_word
 
@@ -695,12 +751,13 @@ ie.
 
 		for ( var j=0; j < j_uplimit; j++ ) {
 			kg1 = prev_kgrams[j] 
-			show( "load_ngl===> kgram loop:  ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
+			show_debug( "load_ngl===> kgram loop:  ( " + j + " , " + (j + 1) + ") : < " + kg1 + ">------< " + kg2 + " > " );
 			
 			update_nextWord_count = (j==0)  // Update only on first iter of this loop
 			this.load_ngram_pair( kg1, kg2, update_nextWord_count );
-			var showMsg = ""
-			this.show_tables( showMsg )
+
+			//var showMsg = ""
+			//this.show_tables( showMsg )
 		}
 	}
 
@@ -739,34 +796,35 @@ ie.
 //    It must be new'd into an instance of type Ngram
 //
 	this.load_ngram = function ( ng_as_list, update_entry_count ) {  
-		show( "---ENTER load_ngram" )
+		show_debug( "---ENTER load_ngram" )
 	/* the situation / 
 		ngram-as-list --> Ngram --> NgramEntry --> load into: NgramEntryTable
 	*/
 
 		var ng_id = null;
 		var ng_as_Ngram = new Ngram(ng_as_list)
-show("---load_ngram: built Ngram from ng_as_list-->srep: " + ng_as_Ngram.stringRep() )
+show_debug("---load_ngram: built Ngram from ng_as_list-->srep: " + ng_as_Ngram.stringRep() )
 
 		// NB- Responsibility for InternalId assignment is lower down.
 		var ng_as_NgramEntry = new NgramEntry( null, ng_as_Ngram, 1 )
+//ttt
 
 		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = update_entry_count
 		var load_result = this.ngrams.load( ng_as_NgramEntry, update_entry_count );
 		//retVal = { was_in_table: is_in, id: this.table[ id_to_do_table_update ].id  }
 
-		show( "---load_ngram: called this.ngrams.load---loadresuld id: " + load_result.id)
+		show_debug( "---load_ngram: called this.ngrams.load---loadresuld id: " + load_result.id)
 		return load_result.id 
 	}
 
 	this.load_link = function ( id_ng_1, id_ng_2 ) {  
-show("enter------load_link-- " + "id_ng_1: "+id_ng_1+", id_ng_2: "+id_ng_2 )
+show_debug("enter------load_link-- " + "id_ng_1: "+id_ng_1+", id_ng_2: "+id_ng_2 )
 		// responsibility for assigning InternalId for the NgramLink lies lower down.
 		//			hence pass "null" as the Id to the NgramLink constructor
 			NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
 		var loadResult = this.links.load( new NgramLink( null, id_ng_1, id_ng_2 ) )
 		var link_id = loadResult.id
-show("exit------load_link-- got newORpre-existing link_id: " + link_id )
+show_debug("exit------load_link-- got newORpre-existing link_id: " + link_id )
 		return link_id
 	}
 
@@ -774,7 +832,7 @@ show("exit------load_link-- got newORpre-existing link_id: " + link_id )
 // The corpus must check whether the kgram(
 //
 	this.load_ngram_pair = function ( n1, n2 , update_nextWord_count ) {
-show("======load_ngram_pair--ENTER==")
+show_debug("======load_ngram_pair--ENTER==")
 		//
 		//		update_nextWord_count - flag whether to do count-update for n2, or not.
 		// NB-- 2nd arg to load_ngram is a flag as to whether or not to
@@ -790,12 +848,15 @@ show("======load_ngram_pair--ENTER==")
 		var id_n1 = null
 		var id_n2 = null
 		
-		show( "------------call.load_ngram( ===|| " + n1 + " ||===" )
-		// Update count for n1 ?  -- never
-		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = false
+		show( "--------load_ngram_pair----call.load_ngram( ===|| " + n1 + " ||===" )
+		//show( "--------load_ngram_pair----call.load_ngram( ===|| " + n1.stringRep_terse() + " ||===" )
+		//ttt show_debug( "------------call.load_ngram( ===|| " + n1.stringRep_terse() + " ||===" )
+		// Update count for n1 ?  -- never  (( OR-- only if degree >= 2 ?? ))
+		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = ( n1.length >= 2 )
+		//ttt NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = ( n1.degree >= 1 )
 		id_n1 = this.load_ngram( n1, NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER )
 		
-		show( "------------call.load_ngram( ===|| " + n2 + " ||===" )
+		show_debug( "------------call.load_ngram( ===|| " + n2 + " ||===" )
 		// Update count for n2 ?  -- as per given flag
 		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = update_nextWord_count
 		id_n2 = this.load_ngram( n2, NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER )
@@ -805,7 +866,7 @@ show("======load_ngram_pair--ENTER==")
 		NG_GLOBAL_UPDATE_ENTRY_TABLE_COUNTER = true
 		id_nlink = this.load_link( id_n1, id_n2 ) 
 
-show("======load_ngram_pair--END: (link_id, id_n1, id_n2)=(" + id_nlink +", "+id_n1 +", "+ id_n2 + ")" )
+show_debug("======load_ngram_pair--END: (link_id, id_n1, id_n2)=(" + id_nlink +", "+id_n1 +", "+ id_n2 + ")" )
 		return { ng1: id_n1, ng2: id_n2, link_id: id_nlink } ;
 	}
 
@@ -827,6 +888,7 @@ wtc.init( WordList_1 );
 //
 c.analyze( wtc );
 c.summarize();
+c.show_tables( "final result" ) 
 	
 
 /* not ready for these tests yet--------------
@@ -850,3 +912,157 @@ show( "-----TESTS for Generator-------" )
 ---------*/
 
 
+/*     some sample results -----------------
+
+
+
+---------------
+
+===> ---------Corpus Tables-------<
+===> --< msg: final result
+===> --All  words     : ||a,b,c,d,a,b,b,c,b,d,c,h,c,e,a,e,a,a,b,a,b,c,d,g,f,b,c,b,f,c,d,c,f,a,h,g,a,b,a,d,c,d,c,d,b,c,d,f,c,d,c,c,d,c,d,d,b,a,b,h,d,g,f,b,h,b,f,h,d,c,f,a,e,g,a,b||
+===> NgramEntry count: 43 || NgramLink count: 92
+===> --------------ngrams------- count: 43
+===>     [id] 1, count: 12, text: a
+===>     [id] 2, count: 15, text: b
+===>     [id] 3, count: 1, text: a=b
+===>     [id] 4, count: 16, text: c
+===>     [id] 7, count: 1, text: b=c
+===>     [id] 8, count: 14, text: d
+===>     [id] 11, count: 1, text: c=d
+===>     [id] 15, count: 1, text: d=a
+===>     [id] 23, count: 1, text: b=b
+===>     [id] 31, count: 1, text: c=b
+===>     [id] 35, count: 1, text: b=d
+===>     [id] 39, count: 1, text: d=c
+===>     [id] 40, count: 5, text: h
+===>     [id] 43, count: 1, text: c=h
+===>     [id] 47, count: 1, text: h=c
+===>     [id] 48, count: 3, text: e
+===>     [id] 51, count: 1, text: c=e
+===>     [id] 55, count: 1, text: e=a
+===>     [id] 59, count: 1, text: a=e
+===>     [id] 67, count: 1, text: a=a
+===>     [id] 75, count: 1, text: b=a
+===>     [id] 88, count: 4, text: g
+===>     [id] 91, count: 1, text: d=g
+===>     [id] 92, count: 7, text: f
+===>     [id] 95, count: 1, text: g=f
+===>     [id] 99, count: 1, text: f=b
+===>     [id] 111, count: 1, text: b=f
+===>     [id] 115, count: 1, text: f=c
+===>     [id] 127, count: 1, text: c=f
+===>     [id] 131, count: 1, text: f=a
+===>     [id] 135, count: 1, text: a=h
+===>     [id] 139, count: 1, text: h=g
+===>     [id] 143, count: 1, text: g=a
+===>     [id] 155, count: 1, text: a=d
+===>     [id] 175, count: 1, text: d=b
+===>     [id] 187, count: 1, text: d=f
+===>     [id] 203, count: 1, text: c=c
+===>     [id] 219, count: 1, text: d=d
+===>     [id] 235, count: 1, text: b=h
+===>     [id] 239, count: 1, text: h=d
+===>     [id] 259, count: 1, text: h=b
+===>     [id] 267, count: 1, text: f=h
+===>     [id] 291, count: 1, text: e=g
+===> --------------------------
+===> --------------links ------- count: 92
+===>  (linkId) [ngramId]                 [ngramId] 
+===>     ( 1):    [1]---| count: 7 |---->[2]
+===>     ( 2):    [3]---| count: 2 |---->[4]
+===>     ( 3):    [2]---| count: 5 |---->[4]
+===>     ( 4):    [7]---| count: 3 |---->[8]
+===>     ( 5):    [4]---| count: 9 |---->[8]
+===>     ( 6):    [11]---| count: 1 |---->[1]
+===>     ( 7):    [8]---| count: 1 |---->[1]
+===>     ( 8):    [15]---| count: 1 |---->[2]
+===>     ( 10):    [3]---| count: 1 |---->[2]
+===>     ( 11):    [2]---| count: 1 |---->[2]
+===>     ( 12):    [23]---| count: 1 |---->[4]
+===>     ( 14):    [7]---| count: 2 |---->[2]
+===>     ( 15):    [4]---| count: 2 |---->[2]
+===>     ( 16):    [31]---| count: 1 |---->[8]
+===>     ( 17):    [2]---| count: 1 |---->[8]
+===>     ( 18):    [35]---| count: 1 |---->[4]
+===>     ( 19):    [8]---| count: 7 |---->[4]
+===>     ( 20):    [39]---| count: 1 |---->[40]
+===>     ( 21):    [4]---| count: 1 |---->[40]
+===>     ( 22):    [43]---| count: 1 |---->[4]
+===>     ( 23):    [40]---| count: 1 |---->[4]
+===>     ( 24):    [47]---| count: 1 |---->[48]
+===>     ( 25):    [4]---| count: 1 |---->[48]
+===>     ( 26):    [51]---| count: 1 |---->[1]
+===>     ( 27):    [48]---| count: 2 |---->[1]
+===>     ( 28):    [55]---| count: 1 |---->[48]
+===>     ( 29):    [1]---| count: 2 |---->[48]
+===>     ( 30):    [59]---| count: 1 |---->[1]
+===>     ( 32):    [55]---| count: 1 |---->[1]
+===>     ( 33):    [1]---| count: 1 |---->[1]
+===>     ( 34):    [67]---| count: 1 |---->[2]
+===>     ( 36):    [3]---| count: 2 |---->[1]
+===>     ( 37):    [2]---| count: 3 |---->[1]
+===>     ( 38):    [75]---| count: 2 |---->[2]
+===>     ( 44):    [11]---| count: 1 |---->[88]
+===>     ( 45):    [8]---| count: 2 |---->[88]
+===>     ( 46):    [91]---| count: 2 |---->[92]
+===>     ( 47):    [88]---| count: 2 |---->[92]
+===>     ( 48):    [95]---| count: 2 |---->[2]
+===>     ( 49):    [92]---| count: 2 |---->[2]
+===>     ( 50):    [99]---| count: 1 |---->[4]
+===>     ( 54):    [31]---| count: 1 |---->[92]
+===>     ( 55):    [2]---| count: 2 |---->[92]
+===>     ( 56):    [111]---| count: 1 |---->[4]
+===>     ( 57):    [92]---| count: 2 |---->[4]
+===>     ( 58):    [115]---| count: 2 |---->[8]
+===>     ( 60):    [11]---| count: 4 |---->[4]
+===>     ( 62):    [39]---| count: 2 |---->[92]
+===>     ( 63):    [4]---| count: 2 |---->[92]
+===>     ( 64):    [127]---| count: 2 |---->[1]
+===>     ( 65):    [92]---| count: 2 |---->[1]
+===>     ( 66):    [131]---| count: 1 |---->[40]
+===>     ( 67):    [1]---| count: 1 |---->[40]
+===>     ( 68):    [135]---| count: 1 |---->[88]
+===>     ( 69):    [40]---| count: 1 |---->[88]
+===>     ( 70):    [139]---| count: 1 |---->[1]
+===>     ( 71):    [88]---| count: 2 |---->[1]
+===>     ( 72):    [143]---| count: 2 |---->[2]
+===>     ( 76):    [75]---| count: 1 |---->[8]
+===>     ( 77):    [1]---| count: 1 |---->[8]
+===>     ( 78):    [155]---| count: 1 |---->[4]
+===>     ( 80):    [39]---| count: 3 |---->[8]
+===>     ( 86):    [11]---| count: 1 |---->[2]
+===>     ( 87):    [8]---| count: 2 |---->[2]
+===>     ( 88):    [175]---| count: 1 |---->[4]
+===>     ( 92):    [11]---| count: 1 |---->[92]
+===>     ( 93):    [8]---| count: 1 |---->[92]
+===>     ( 94):    [187]---| count: 1 |---->[4]
+===>     ( 100):    [39]---| count: 1 |---->[4]
+===>     ( 101):    [4]---| count: 1 |---->[4]
+===>     ( 102):    [203]---| count: 1 |---->[8]
+===>     ( 108):    [11]---| count: 1 |---->[8]
+===>     ( 109):    [8]---| count: 1 |---->[8]
+===>     ( 110):    [219]---| count: 1 |---->[2]
+===>     ( 112):    [175]---| count: 1 |---->[1]
+===>     ( 116):    [3]---| count: 1 |---->[40]
+===>     ( 117):    [2]---| count: 2 |---->[40]
+===>     ( 118):    [235]---| count: 1 |---->[8]
+===>     ( 119):    [40]---| count: 2 |---->[8]
+===>     ( 120):    [239]---| count: 1 |---->[88]
+===>     ( 126):    [99]---| count: 1 |---->[40]
+===>     ( 128):    [235]---| count: 1 |---->[2]
+===>     ( 129):    [40]---| count: 1 |---->[2]
+===>     ( 130):    [259]---| count: 1 |---->[92]
+===>     ( 132):    [111]---| count: 1 |---->[40]
+===>     ( 133):    [92]---| count: 1 |---->[40]
+===>     ( 134):    [267]---| count: 1 |---->[8]
+===>     ( 136):    [239]---| count: 1 |---->[4]
+===>     ( 142):    [131]---| count: 1 |---->[48]
+===>     ( 144):    [59]---| count: 1 |---->[88]
+===>     ( 145):    [48]---| count: 1 |---->[88]
+===>     ( 146):    [291]---| count: 1 |---->[1]
+===> --------------------------
+===> 
+
+
+*/
