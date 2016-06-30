@@ -363,12 +363,25 @@ function Ngram( asListofWords) {
 	this.show = function() { this.stringRep() }
 	this.matchByValueItem = function() { return this.as_text }
 	this.degree = this.as_list.length
+
+	this.getSuffix = function( k )  { 
+		return this.as_list.slice( this.as_list.length - k )
+	}
+	this.getPrefix = function( k ) { 
+		return this.as_list.slice( 0,k )
+	}
+
+
 }
 //TESTS
 var n1 = new Ngram( [ "list-1 1 item - first such beings found" ] );
 var n2 = new Ngram( [ "list-2: 4 items", "first", "such", "beings", "found" ] );
 n1.show()
 n2.show()
+n1.getSuffix(1)
+n1.getSuffix(2)
+n1.getPrefix(1)
+n1.getPrefix(2)
 
 
 
@@ -487,14 +500,30 @@ function NgramEntry(id, ngram, count, degree) {
 	this.GUID_Provider = Ngram_GUID_Provider 
 	this.matchByValueItem = function() { return this.ngram.matchByValueItem() }
 	this.InternalIdHasBeenAssigned = function() { return !(this.id === null) ; }
+
+	this.getNgram = function() { return this.ngram }
+
+	//  get the k-th suffix text of an Ngram
+	this.getSuffix = function( k )  { 
+		return this.getNgram().getSuffix(k)
+	}
+	this.getPrefix = function( k ) { 
+		return this.getNgram().getPrefix(k)
+	}
+
 }
 // TESTS
 ne1= new NgramEntry(57, new Ngram( ["as to this"] ),1,1)
 ne2 = new NgramEntry(89,new Ngram( ["aaa","asdasda"] ),34,2)
+ne3 = new NgramEntry(99,new Ngram( ["aaa","asdasda", "bbfbfbfbf"] ),34,3)
 ne1
 ne2
 ne2.count
 ne2.incr_count()
+ne2.getSuffix(1)
+ne2.getPrefix(1)
+ne3.getPrefix(1)
+ne3.getSuffix(1)
 
 
 function	NgramLink( id, pre_id, next_id ) {
@@ -891,7 +920,6 @@ c.summarize();
 c.show_tables( "final result" ) 
 	
 
-/* not ready for these tests yet--------------
 
 //
 //   Generator
@@ -899,17 +927,112 @@ c.show_tables( "final result" )
 // constructor for--> Generator
 //
 function Generator( list_of_corpuses ) {
+	// set "pointers" into the supplied Corpus(es)
 	this.corpuses = list_of_corpuses
+	this.aCorpus = this.corpuses.pop()
+	this.ngram_table = this.aCorpus.ngrams
+	this.ngram_links = this.aCorpus.links
 
-	this.generate = function() {
+	this.getNgramByRandom = function() {
+		var mx = this.ngram_table.length	// max index
+		var mn = 0												// min index
+		var ni = Math.floor(Math.random() * (mx-mn)+mn)
+		var ng = null
+		var ng_maybe = null
+		var n_tries = 0
+
+		while ( !(ng_maybe === null) && !(ng_maybe === undefined) ) {
+			if ( n_tries++ > 500 ) {
+				// ERROR -- can't get an Ngram
+				// revert to linear-search over  this.ngram_table
+				show( "getNgramByRandom-----CANNOT get non-null NgramEntry !!!" )
+			}
+			ng_maybe = this.ngram_table[ ni ];
+		}
+		ng = ng_maybe
+
+
+		return ng;
+	}
+
+	this.generate = function( ) {
 		show( "Generator -- generate text using list of Corpuses" )
+		// for now, use one
+
+		var N_cycles = 100
+
+		var nc = 0
+		var selectBy = null //  selectBy enum--ONE_OF : null, "NGRAM_TABLE", "NGRAM_LINK"
+		var selectBy_N = 0
+		var selectBy_count = 0
+		var nx_ng = null  // Next ngram
+		var cu_ng = null // Current ngram
+
+		//selectBy = NGRAM_TABLE
+		selectBy = NGRAM_RANDOM		// YODO--for now
+		
+		while ( nc++ < N_cycles ) {
+			//
+			if ( selectBy_count > selectBy_N ) {
+				selectBy_count = 0 
+				// pick new selection regime
+				switch( selectBy ) {
+				case "NGRAM_TABLE" : selectBy = "NGRAM_LINK"; break;
+				case "NGRAM_LINK" : selectBy = "NGRAM_TABLE"; break;
+				case "NGRAM_RANDOM" : selectBy = "NGRAM_RANDOM"; break;
+				case null : selectBy = "NGRAM_TABLE";
+				}
+			}
+			// pick an NgramEntry, cu_ng
+			switch( selectBy ) {
+				if ( nc <= 1 )
+					cu_ng = getNgramByRandom()
+				else {
+					case "NGRAM_TABLE" : 
+					// cu_ng = ...
+					var pv_ng = cu_ng ;		// save 'current' as 'previous'
+					var no_match_found = false
+					// match by k-ngram-overlap, k=1
+
+					var matchText = cu_ng.getSuffix(1)
+					// Find the "next ngram" 
+					// by finding the ngram whose Prefix equals the Suffix of the curent Ngram
+					//eee
+		//LEFT_OFF  test Array.find/filter routines in REPL
+
+
+					if ( no_match_found ) {  // pick one at random
+						cu_ng = getNgramByRandom()
+					}
+					break;
+
+					case "NGRAM_LINK" : selectBy = "NGRAM_TABLE"; 
+					// cu_ng = ...
+					cu_ng = null  // TO_DO--for now
+					break;
+
+					case null : selectBy = "NGRAM_TABLE";
+				}
+
+			}
+	
+				
+			selectBy_count++ 
+
+			// pick a successor NgramEntry, nx_ng
+
+			selectBy_count++ 
+
+			// update current / next
+			cu_ng = nx_ng
+			nx_ng = null
+		}
 	}
 
 }
 
 show( "-----TESTS for Generator-------" )
 
----------*/
 
 
 /*     some sample results -----------------
