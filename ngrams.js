@@ -129,6 +129,7 @@ function show_d(debug_level,msg) {
 }
 function show(msg) { show_d(0,msg) }
 function show_debug(msg) { show_d(1,msg) }
+function well_defined(x) { return ( !(x === undefined) && !(x === null) ) }
 // TESTS
 show("NG_GLOBAL_DEBUG_LEVEL: "+NG_GLOBAL_DEBUG_LEVEL)
 show("kkk")
@@ -140,7 +141,9 @@ show_debug("----debug--")
 var IgnoreWords = [ "the","a","these","those", "etc" ];
 // qqq--what about punctuation??
 
-var WordList_1 = [ 
+var WordList_1b = [ "the", "flying", "saucers", "were", "observed",  "moving", "like", "saucers", "skipping", "over", "water", "flying","enthusiasts","were","enlisted" ];
+
+var WordList_1a = [ 
 "a","b","c","d","a","b",
 "c","c","a","b","c","a",
 "c","d","w",
@@ -161,6 +164,8 @@ var WordList_1 = [
 "e","a","d","a","a","b",
 "e","a","c","a","a","b"
 ];
+var WordList_1 = WordList_1b 
+
 /*
 "a","b","c","d","g","f","b","c","b","f","c","d","c","f","a","h","g","a","b",
 "a","d","c","d","c","d","b","c","d","f","c","d","c","c","d","c","d","d","b",
@@ -576,6 +581,7 @@ nlnk1.stringRep()
 //
 function	NgramEntryTable() {
 	this.table = [];	// array of NgramEntry
+	this.length = function() {return this.table.length}
 	this.count = 0
 
 	this.incr_count=increment_count
@@ -663,6 +669,8 @@ function Corpus() {
 		show( "Corpus.analyze== : wordSource into NgramEntryTable" );
 		this.extract_Ngrams( ws );
 	}
+
+	this.getNgramEntryTable = function() { return this.ngrams }
 
 	this.summarize = function() {
 		show("Corpus Summary===" )
@@ -916,11 +924,42 @@ c.summarize();
 c.show_tables( "final result" ) 
 	
 //==================================================
-// code section: n4.js
+// code section: 
+/* ==============================
 
-// select a random elem from an Array
+	 "Classes" involved in Generation of Text from a Corpus
+
+	 Generator has_a list<Corpus>
+
+	 Generator has_a list<Strategy>
+
+	 Strategy has_a list<Selector>
+
+	 Selector comes in various flavours: randomNgram, OverlapNgram, NgramByLink, etc
+	 These "select" existing ngrams, from which text is extracted and hence
+	 "generated".
+	 Further development may involve Phrase or Discourse-level generators, which
+	 would generate text procedurally
+	 eg. alien honorifics
+	 eg. AI log-traces
+	 etc.
+
+	 Strategy uses one or more Selectors to select sequence(s) of ngrams,
+	 from which surface-text is extracted and returned.
+	 "Simple" Strategies use a corresponding Selector directly.
+	 More sophisticated Strategies use one or more Strategies and or Selectors,
+	 to produce sequences of ngrams and therefrom resulting text.
+
+
+	 Generator uses one or more Strategies, together with one or more Corpuses,
+	 to generate a stream of text.
+
+	 ==============================
+ */
+
+// Utils -- select a random elem from an Array
 //
-function random_A(A) { return A[ Math.floor(Math.random() * A.length )] }
+function random_A(A) { return A[ Math.floor(Math.random() * A.length) ] }
 function random_ab(a,b) { return Math.floor(Math.random() * Math.abs(b-a) + a) }
 
 
@@ -943,7 +982,42 @@ function NgramStrategy_MIXED() {
 
 // Select next Ngram by using k-overlap of suffix/prefix text
 //
-function NgramStrategy_NGRAM_OVERLAP() {
+
+function NgramStrategy_NGRAM_OVERLAP (an_ngramTable) {
+
+	this.ngrams = an_ngramTable
+	// As a fall-back, if a suitable k-overlap cannot be found,
+	// this Strategy uses a Random Strategy
+	this.theRandomStrategy = new NgramStrategy_NGRAM_RANDOM( this.ngrams ) 
+
+
+	// Given a text-to-match, match_text, and a table of NgramEntries,
+	// find all items in the Table whose
+	//	text matches the given match_text, using a k-overlap matching predicate
+	//
+	this.find_allMatches = function(match_text_array, an_ngram_table, k_overlap) {
+
+show("find_allMatches...enter")
+		var theTable = an_ngram_table
+		var theTableLength = an_ngram_table.length()
+		var allMatches = [] 
+
+var tt=(theTableLength > 0) ? "true":"false"
+show("find_allMatches...theTableLength > 0 == " + tt )
+
+		// extract candidate-texts from NgramEntry table
+		// TODO - this extraction should have been done once, upon table-load.
+		var i = 0
+		var candidate_texts = []
+		var ne 		// an NgramEntry
+		for( i=0; i < theTableLength; i++ ) {
+			var ne = theTable[i] ;  // the NgramEntry
+			if ( well_defined(ne) )
+				candidate_texts.push(ne.getSurfaceText())  // NB-- not the whole NgramEntry, just its text
+		}
+		allMatches = kovers_all(match_text_array, candidate_texts, k_overlap) 
+		return allMatches
+	}
 
 //---------------------------------------------------
 	// Select a single "next gram" by k-overlap of ngram text
@@ -955,17 +1029,22 @@ function NgramStrategy_NGRAM_OVERLAP() {
 		var match_found = false
 
 		// match by k-ngram-overlap, k=1
-		var matchText = cu_ng.getSuffix(1)
+		var k_overlap = 1
+
+		//var matchText = cu_ng.getSuffix(1)
+		var matchText = [ cu_ng.getSuffix(1) ]  //--->should be list
 		// Find the "next ngram" 
 		// by finding the ngram whose Prefix equals the Suffix of the curent Ngram
 		// a) find all matches
-		var allMatches = find_allMatches(matchText)
+					//  NB -- passed arg "ngrams", below, is visible by closure,
+					//   from the surrounding lexical scope
+		var allMatches = this.find_allMatches(matchText, this.ngrams, k_overlap)
 		// b) pick one randomly
 		if ( !(allMatches === undefined) && allMatches.length > 0 ) {
 			theMatch = random_A( allMatches ) ;
 			match_found = true
 		}
-		nx_ng = ( match_found ) ? theMatch : getNgramByRandom()
+		nx_ng = ( match_found ) ? theMatch : this.getNgramByRandom()
 		return nx_ng
 	}
 
@@ -974,54 +1053,74 @@ function NgramStrategy_NGRAM_OVERLAP() {
 	//			- number of selection cycles ie. how many items in the sequence
 	//
 	this.ngramByNgramOverlap = function() {
-		show( "NgramStrategy_NGRAM_OVERLAP -- ngramByNgramOverlap()" )
+		show( "NgramStrategy_NGRAM_OVERLAP -- enter ngramByNgramOverlap()" )
 
 		var N_cycles = 100
 		var nc = 0
 		var nx_ng = null  // Next ngram
 		var cu_ng = null // Current ngram
 
-		selectBy = NGRAM_RANDOM		// TODO--for now
 
 		while ( nc++ < N_cycles ) {
 
 			// pick an NgramEntry, cu_ng
 				if ( nc <= 1 ) {
-					cu_ng = getNgramByRandom()
+		show( "NgramStrategy_NGRAM_OVERLAP -- nc <= 1 -- try Random....")
+					cu_ng = this.getNgramByRandom()
+		show( "NgramStrategy_NGRAM_OVERLAP -- nc <= 1 -- got Random....")
 					nx_ng = cu_ng
 				}
 				else {
 					nx_ng = this.selectOneNgramByNgramOverlap( cu_ng )
 				}
 
-			// DISPLAY: "render" selected NgramEntry to surface text
-			show( nx_ng.getSurfaceText() )
+			if ( ! well_defined(nx_ng) )
+				show( "NgramStrategy_NGRAM_OVERLAP -- nx_ng not well-defined!!" )
+			else {
+						// DISPLAY: "render" selected NgramEntry to surface text
+			//--DEBUG
+						var msg = "==>ngramByNgramOverlap : get nx_ng..." 
+						show( msg )
+						show( nx_ng.getSurfaceText() )
+			//--DEBUG
+			}
+
 			// update current / next
 			cu_ng = nx_ng
 			nx_ng = null
 		} // end-while
+
+	return nx_ng
 	} // end--function
+
+	this.getNgramByRandom = function() {
+		var rn = this.theRandomStrategy.generate()
+		show( "getNgramByRandom -- got random ngram: " + rn.getSurfaceText() ) // DEBUG
+		return rn
+	}
 
 	this.generate = function( ) { return this.ngramByNgramOverlap() }
 
 }
 
+function NgramStrategy_NGRAM_RANDOM( anNgramTable ) {
 
-function NgramStrategy_NGRAM_RANDOM () {
+	this.ngram_table = anNgramTable
 
 	this.getNgramByRandom = function() {
 		var ng = null
 		var ng_maybe = null
 		var n_tries = 0
 
-		while ( !(ng_maybe === null) && !(ng_maybe === undefined) ) {
+		while ( !well_defined(ng_maybe) ) {
 			if ( n_tries++ > 500 ) {
 				// ERROR -- can't get an Ngram
 				// revert to linear-search over  this.ngram_table
 				show( "getNgramByRandom-----CANNOT get non-null NgramEntry !!!" )
 				break
 			}
-			ng_maybe = random_A(this.ngram_table)
+		// pass in the raw javascript array used internally
+			ng_maybe = random_A(this.ngram_table.table)  
 		}
 		ng = ng_maybe
 		return ng;
@@ -1030,92 +1129,101 @@ function NgramStrategy_NGRAM_RANDOM () {
 	this.generate = function() { return this.getNgramByRandom() }
 }
 
-function NgramStrategy() {
+//++++++++++++
+function ttt_getPrefix(some_list,k) { return some_list.slice( 0, k ) }
+function ttt_getSuffix(some_list, k )  { return some_list.slice( some_list.length - k ) }
+function kover(match_tx, candidate_tx, k) { return ( ttt_getSuffix(match_tx,k) == ttt_getPrefix(candidate_tx,k) ) }
+function kovers(match_tx, candidate_tx, k) { return ( ttt_getSuffix(match_tx,k).toString() == ttt_getPrefix(candidate_tx,k).toString() ) }
+
+function kovers_all(match_text_array, candidates_text_array, k) {
+		var matchItem = match_text_array.toString()
+    var theTable = candidates_text_array
+    var allMatches = []
+
+    var candidate_item = null
+    var candidate_item_s = null
+		var msg = ""
+		var m = ""
+    var i = 0
+
+    show("==="); show( "FullMatch item: " + matchItem )
+
+    for( i=0; i < theTable.length; i++ ) {
+      candidate_item = theTable[i] 
+			candidate_item_s = candidate_item.toString()
+        show("==="); show( "Candidate: " + candidate_item_s )
+      msg =  ( "candidate_item: " + candidate_item_s + "-- (k="+k+")overlap matches? --> " +  matchItem )
+			if ( kovers(matchItem, candidate_item_s, k) ) {
+        allMatches.push(candidate_item)  
+				m = msg + " __YES"	; show( m )
+      } else {
+				m = msg + " __NO"	; show( m )
+      }
+    }
+    return allMatches
+}
+/* 
+kovers_all( "abcd", ["dxxx","exxx","daaa"],1)
+kovers_all( ["abcd"], ["dxxx","exxx","daaa"],1)
+kovers_all( ["abcd"], ["abcd","dxxx","exxx","daaa"],1)
+kovers_all( "abcd", ["cdxxx","cexxx","daaa", "cd","sasasa__cd"],2)
+kovers_all( ["abcd"], ["cdxxx","cexxx","daaa", "cd","sasasa__cd"],1)
+*/
+
+
+
+function NgramStrategy( aCorpus ) {
+	this.theCorpus = aCorpus
+
+	this.ngrams = this.theCorpus.getNgramEntryTable()
+	this.getNgramEntryTable = function() { return this.ngrams }
+
 	this.selectors = []
-	this.randomStrategy = new  NgramStrategy_NGRAM_RANDOM() 
-	this.overlapStrategy = new  NgramStrategy_NGRAM_OVERLAP() 
+	this.randomStrategy = new  NgramStrategy_NGRAM_RANDOM( this.ngrams )
+	this.overlapStrategy = new  NgramStrategy_NGRAM_OVERLAP( this.ngrams ) 
 	this.getNgramByRandom = function() { return this.randomStrategy.getNgramByRandom() }
+
+
+
+
 	this.generate = function() { return this.overlapStrategy.generate() }
 
-	this.find_allMatches = function(matchText) {
-		var theTable = this.ngram_table
-		var allMatches = [] 
-
-		// TODO
-		// ttt--instead:  allMatches = theTable.filter( lambda : element.getText == matchText ) 
-		var i = 0
-		for( i=0; i < theTable.length; i++ ) {
-			var ne = theTable[i] ;  // the NgramEntry
-			if ( ne.getPrefix(1) == matchText ) {
-				allMatches.push(ne)  // NB-- the whole NgramEntry, not the Ngram or just its text
-			}
-		}
-		return allMatches
-	}
 }	//end--NgramStrategy()
 
 function NgramSelector( aCorpus ) {
 
-	this.ngramStrategy = new NgramStrategy()
-	this.getNgramByRandom = function() { return this.ngramStrategy.getNgramByRandom() }
-	this.generate = function( ) { return this.ngramStrategy.generate() }
+				this.theCorpus = aCorpus
+				this.ngramStrategy = new NgramStrategy( this.theCorpus )
+				this.getNgramByRandom = function() { return this.ngramStrategy.getNgramByRandom() }
+				this.generate = function( ) { return this.ngramStrategy.generate() }
 
 }
 
-/* ==============================
-
-	"Classes" involved in Generation of Text from a Corpus
-
-	Generator has_a list<Corpus>
-
-	Generator has_a list<Strategy>
-
-	Strategy has_a list<Selector>
-
-	Selector comes in various flavours: randomNgram, OverlapNgram, NgramByLink, etc
-		These "select" existing ngrams, from which text is extracted and hence
-		"generated".
-		Further development may involve Phrase or Discourse-level generators, which
-		would generate text procedurally
-			eg. alien honorifics
-			eg. AI log-traces
-			etc.
-
-	Strategy uses one or more Selectors to select sequence(s) of ngrams,
-		from which surface-text is extracted and returned.
-		"Simple" Strategies use a corresponding Selector directly.
-		More sophisticated Strategies use one or more Strategies and or Selectors,
-			to produce sequences of ngrams and therefrom resulting text.
-
-
-	Generator uses one or more Strategies, together with one or more Corpuses,
-	 to generate a stream of text.
-
-	==============================
-*/
 //
 //   Generator
 //
 // constructor for--> Generator
 //
 function Generator( list_of_corpuses ) {
-	// set "pointers" into the supplied Corpus(es)
-	this.corpuses = list_of_corpuses
-	this.strategies = [ "list-of-strategies" ]
-	this.aCorpus = this.corpuses.pop()
-	this.ngram_table = this.aCorpus.ngrams
-	this.ngram_links = this.aCorpus.links
+show("Generator-->1")
+				// set "pointers" into the supplied Corpus(es)
+				this.corpuses = list_of_corpuses
+				this.strategies = [ "list-of-strategies" ]
+				this.aCorpus = this.corpuses.pop()
+				this.ngram_table = this.aCorpus.ngrams
+				this.ngram_links = this.aCorpus.links
 
-	this.ngramSelector = new NgramSelector(this.aCorpus)
-	this.generate = function( ) { this.ngramSelector.generate() }
+show("Generator-->2")
+				this.ngramSelector = new NgramSelector(this.aCorpus)
+	this.generate = function( ) { return this.ngramSelector.generate() }
+
 
 }	// end-object-Generator
 
 show( "-----TESTS for Generator-------" )
 
 
-
-/*     some sample results -----------------
+/*     Corpus -- some sample results -----------------
 
 
 
@@ -1269,3 +1377,44 @@ show( "-----TESTS for Generator-------" )
 
 
 */
+
+//LEFT_OFF -- test Generator
+//------------------
+// TESTS for Generator
+Ngram_GUID_Provider.reset()
+Link_GUID_Provider.reset()
+var c = new Corpus()
+var wtc = new WordSource(); 
+wtc.init( WordList_1 );
+//
+c.analyze( wtc );
+c.summarize();
+c.show_tables( "final result" ) 
+
+
+// TEST-- Generator
+function tg( aCorpus ) {
+	var c = aCorpus
+	var cc=[]
+	cc.push(c)
+	
+	var gen = new Generator( cc )
+	var gc = 0
+	var gcmax = 10
+	
+	var gentext = ""
+	while (gc++ < gcmax) {
+		gentext += gen.generate()
+		show( "||- " + gentext.toString())
+	}
+		show( "FINAL||- "+gentext)
+}
+
+
+/*
+// LEFT_OFF  testing Generator::
+
+==> run this:
+     tg(c)
+*/
+
